@@ -1,0 +1,10 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY evtxkit/ ./evtxkit/
+COPY soccore/ ./soccore/
+
+ENTRYPOINT ["python3", "-m", "evtxkit"]
+
+CMD ["--help"]
