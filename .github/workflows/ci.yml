@@ -46,14 +46,14 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: `${{ secrets.DOCKERHUB_USERNAME }}
-          password: `${{ secrets.DOCKERHUB_TOKEN }}
+          username: `${{ secrets.mitlinux1 }}
+          password: `${{ secrets.mitlinux1 }}
 
       - name: Build and push, tagged with the commit SHA
         run: |
           docker build -f Dockerfile.evtxkit \
-            -t `${{ secrets.DOCKERHUB_USERNAME }}/socscript:`${{ github.sha }} \
-            -t `${{ secrets.DOCKERHUB_USERNAME }}/socscript:latest .
-          docker push `${{ secrets.DOCKERHUB_USERNAME }}/socscript:`${{ github.sha }}
-          docker push `${{ secrets.DOCKERHUB_USERNAME }}/socscript:latest
+            -t `${{ secrets.mitlinux1 }}/socscript:`${{ github.sha }} \
+            -t `${{ secrets.mitlinux1 }}/socscript:latest .
+          docker push `${{ secrets.mitlinux1 }}/socscript:`${{ github.sha }}
+          docker push `${{ secrets.mitlinux1 }}/socscript:latest
 "@ | Out-File -Encoding utf8 ci.yml
