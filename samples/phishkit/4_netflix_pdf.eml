@@ -1,0 +1,68 @@
+Subject: Your Netllx ID has been suspended - Action Required
+From: "Netllx billing" <no-reply@billing-secure-netfIix.example>
+To: victim@example.org
+Date: Tue, 10 Sep 2024 23:26:40 -0000
+Message-ID: <179041299825.18700.7481947999559279403@example.org>
+Received: from billing-secure-netfIix.example (billing-secure-netfIix.example
+ [203.0.113.132]) by mx.example.org with ESMTP id ABC123 for
+ <victim@example.org>; Tue, 10 Sep 2024 23:26:40 -0000
+Authentication-Results: mx.example.org; spf=fail
+ smtp.mailfrom=billing-secure-netfIix.example; dkim=fail
+ header.d=billing-secure-netfIix.example; dmarc=fail p=reject
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============8495352469344068528=="
+
+--===============8495352469344068528==
+Content-Type: multipart/alternative;
+ boundary="===============0086873145476905871=="
+
+--===============0086873145476905871==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+We were unable to process your payment. Update your billing information.
+
+--===============0086873145476905871==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<html><body style=3D"background:#000;color:#fff;font-family:Helvetica">
+    <h1 style=3D"color:#e50914">NETLLX</h1>
+    <p>Dear Customer,</p>
+    <p>We're having some trouble with your current billing information.
+    Your membership has been <b>suspended</b>. To avoid termination of your a=
+ccount,
+    please update your payment details within 24 hours.</p>
+    <p>Please open the attached document to update your account.</p>
+    <p>Need help? Visit <a href=3D"https://help.netflix.com">help.netflix.com=
+</a>
+    or call 1.844.505.2993.</p>
+    </body></html>
+
+--===============0086873145476905871==--
+
+--===============8495352469344068528==
+Content-Type: application/pdf
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="Netllx_Billing_Update.pdf"
+MIME-Version: 1.0
+
+JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2Jq
+CjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2Jq
+CjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIg
+NzkyXSAvQ29udGVudHMgNCAwIFIgL0Fubm90cyBbNSAwIFJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQg
+PDwgL0YxIDYgMCBSID4+ID4+ID4+CmVuZG9iago0IDAgb2JqCjw8IC9MZW5ndGggNjYgL0ZpbHRl
+ciAvRmxhdGVEZWNvZGUgPj4Kc3RyZWFtCniccwpR0HczVDC0UAhJUzAzUDA3MFAISVHQCC1ISSxJ
+VajMLy1SKEiszE3NK1FITE7OL80r0VQIyVJwDQEAzv8RWgplbmRzdHJlYW0KZW5kb2JqCjUgMCBv
+YmoKPDwgL1R5cGUgL0Fubm90IC9TdWJ0eXBlIC9MaW5rIC9SZWN0IFs2MCA2OTAgNDAwIDcyMF0g
+L0JvcmRlciBbMCAwIDBdIC9BIDw8IC9UeXBlIC9BY3Rpb24gL1MgL1VSSSAvVVJJIChodHRwOi8v
+dXBkYXRlLWJpbGxpbmctcG9ydGFsLmV4YW1wbGUvbmV0ZmxpeC9sb2dpbi5waHA/cmVmPTg4MjMp
+ID4+ID4+CmVuZG9iago2IDAgb2JqCjw8IC9UeXBlIC9Gb250IC9TdWJ0eXBlIC9UeXBlMSAvQmFz
+ZUZvbnQgL0hlbHZldGljYSA+PgplbmRvYmoKeHJlZgowIDcKMDAwMDAwMDAwMCA2NTUzNSBmIAow
+MDAwMDAwMDA5IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAKMDAwMDAwMDExNSAwMDAwMCBu
+IAowMDAwMDAwMjU3IDAwMDAwIG4gCjAwMDAwMDAzOTQgMDAwMDAgbiAKMDAwMDAwMDU4NCAwMDAw
+MCBuIAp0cmFpbGVyCjw8IC9TaXplIDcgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjY1NAolJUVP
+Rg==
+
+--===============8495352469344068528==--

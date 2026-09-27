@@ -1,0 +1,17 @@
+{
+  "home_nets": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"],
+  "dmz_nets": ["10.0.0.48/29"],
+  "vpn_pool_nets": ["10.8.0.0/16"],
+  "known_resolvers": ["10.0.0.53", "8.8.8.8"],
+  "gateway_ips": ["10.0.0.1"],
+  "scanner_allowlist": ["10.0.0.240"],
+  "external_scanner_allowlist": [],
+  "domain_allowlist": ["in-addr.arpa", "akamai.net", "cloudfront.net", "windowsupdate.com", "office365.com"],
+  "upload_destination_allowlist": ["backup.corp.example"],
+  "service_accounts": ["svc_backup", "svc_sql"],
+  "business_hours": [8, 18],
+  "beacon_max_jitter": 0.35,
+  "dns_min_entropy": 3.8,
+  "exfil_min_total_bytes": 52428800,
+  "min_severity": "info"
+}

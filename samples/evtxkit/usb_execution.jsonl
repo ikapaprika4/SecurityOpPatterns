@@ -1,0 +1,1 @@
+{"EventID": 1, "Channel": "Sysmon", "TimeCreated": "2026-09-06T09:00:00+00:00", "Computer": "WIN-VICTIM01", "EventData": {"Image": "E:\\Photos.exe", "ParentImage": "C:\\Windows\\explorer.exe", "ProcessId": "6030", "ProcessGuid": "{guid-usb}"}}

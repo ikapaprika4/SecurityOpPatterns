@@ -1,0 +1,76 @@
+Subject: DHL Express - Shipment Document AWB 4592817736
+From: "DHL Express" <noreply@dhl-express-tracking.example>
+To: victim@example.org
+Date: Wed, 11 Sep 2024 01:26:40 -0000
+Message-ID: <179041299825.18700.17256801430255086032@example.org>
+Received: from dhl-express-tracking.example (dhl-express-tracking.example
+ [203.0.113.55]) by mx.example.org with ESMTP id ABC123 for
+ <victim@example.org>; Wed, 11 Sep 2024 01:26:40 -0000
+Authentication-Results: mx.example.org; spf=softfail
+ smtp.mailfrom=dhl-express-tracking.example; dkim=none; dmarc=fail
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============2207431468206515476=="
+
+--===============2207431468206515476==
+Content-Type: multipart/alternative;
+ boundary="===============6362483995972736991=="
+
+--===============6362483995972736991==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Please find attached the shipping document for AWB 4592817736.
+
+--===============6362483995972736991==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<html><body style=3D"font-family:Arial">
+    <div style=3D"background:#ffcc00;padding:12px"><span style=3D"color:#d405=
+11;
+    font-weight:bold;font-size:22px">DHL</span> Express</div>
+    <p>Dear Customer,</p>
+    <p>Your shipment is ready for dispatch. Please review the attached invoic=
+e and
+    confirm the delivery address.</p>
+    <p>AWB: 4592817736</p>
+    </body></html>
+
+--===============6362483995972736991==--
+
+--===============2207431468206515476==
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="DHL_Invoice_4592817736.xlsm"
+MIME-Version: 1.0
+
+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
+AQAAMAQAAAAA
+
+--===============2207431468206515476==--

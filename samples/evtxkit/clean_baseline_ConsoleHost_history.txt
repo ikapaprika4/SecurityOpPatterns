@@ -1,0 +1,3 @@
+cd Documents
+Get-Process
+notepad todo.txt

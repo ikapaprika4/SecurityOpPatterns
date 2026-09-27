@@ -1,0 +1,40 @@
+Subject: Your package 1Z999AA10123456784 could not be delivered
+From: "Distribution Center" <contact@beginpro.example>
+To: victim@example.org
+Date: Tue, 10 Sep 2024 21:26:40 -0000
+Message-ID: <179041299825.18700.794910382938238819@example.org>
+Received: from beginpro.example (beginpro.example [203.0.113.44]) by
+ mx.example.org with ESMTP id ABC123 for <victim@example.org>; Tue, 10 Sep
+ 2024 21:26:40 -0000
+Authentication-Results: mx.example.org; spf=softfail
+ smtp.mailfrom=beginpro.example; dkim=permerror header.d=beginpro.example;
+ dmarc=fail
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="===============3191918440132938065=="
+
+--===============3191918440132938065==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Your parcel is on hold. Tracking number 1Z999AA10123456784.
+
+--===============3191918440132938065==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<html><body>
+    <p>Dear Customer,</p>
+    <p>Your package could not be delivered. Please confirm your address to av=
+oid the
+    parcel being returned. This is your final notice.</p>
+    <p>Tracking number:
+    <a href=3D"http://198.51.100.203/track/redirect.php?id=3D8891">ups.exampl=
+e/track/1Z999AA10123456784</a></p>
+    <img src=3D"http://beginpro.example/Tracking.png?uid=3Dvgmpv_yh0hyvo" wid=
+th=3D"1" height=3D"1"
+         style=3D"display:none" alt=3D"">
+    </body></html>
+
+--===============3191918440132938065==--

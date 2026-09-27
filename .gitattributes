@@ -1,2 +1,9 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# The Windows launcher keeps CRLF line endings on every checkout
+*.bat text eol=crlf
+
+# Evidence samples are analysed byte for byte (hashes, parsers, tests):
+# never convert their line endings
+samples/** -text

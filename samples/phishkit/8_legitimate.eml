@@ -1,0 +1,44 @@
+Subject: Your monthly statement is ready
+From: "GitHub" <noreply@github.com>
+To: victim@example.org
+Date: Wed, 11 Sep 2024 03:26:40 -0000
+Message-ID: <179041299826.18700.11303450531655995350@example.org>
+Return-Path: <noreply@github.com>
+Received: from out-1.smtp.github.com (out-1.smtp.github.com [192.30.252.200])
+ by mx.example.org with ESMTP id ABC123 for <victim@example.org>; Wed, 11 Sep
+ 2024 03:26:40 -0000
+Authentication-Results: mx.example.org; spf=pass smtp.mailfrom=github.com;
+ dkim=pass header.d=github.com; dmarc=pass p=reject
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="===============6389804087860976087=="
+
+--===============6389804087860976087==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Hi Alex,
+
+Your monthly statement for September is available in your account settings.
+
+Thanks,
+The GitHub team
+
+--===============6389804087860976087==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<html><body style=3D"font-family:-apple-system,sans-serif">
+    <p>Hi Alex,</p>
+    <p>Your monthly statement for September is now available.</p>
+    <p><a href=3D"https://github.com/settings/billing">View your statement</a=
+></p>
+    <p>Thanks,<br>The GitHub team</p>
+    <p style=3D"font-size:11px;color:#888">You are receiving this because you=
+ have a
+    GitHub account. <a href=3D"https://github.com/settings/notifications">Man=
+age preferences</a></p>
+    </body></html>
+
+--===============6389804087860976087==--

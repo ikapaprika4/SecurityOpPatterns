@@ -1,0 +1,47 @@
+Subject: Receipt for your payment of $749.99 to Apple Store Gift Cards
+From: "service@paypal.com" <gibberish@sultanbogor.example>
+To: vgmpv_yh0hyvo@yahoo.example
+Date: Tue, 10 Sep 2024 20:26:40 -0000
+Message-ID: <179041299824.18700.6062730432369705604@example.org>
+Reply-To: refund-desk@sultanbogor.example
+Return-Path: <bounce@sultanbogor.example>
+Received: from mail.sultanbogor.example (mail.sultanbogor.example
+ [198.51.100.77]) by mx.yahoo.example with ESMTP id ABC123 for
+ <victim@example.org>; Tue, 10 Sep 2024 20:26:40 -0000
+Authentication-Results: mx.yahoo.example; spf=fail
+ smtp.mailfrom=sultanbogor.example; dkim=none; dmarc=fail
+ header.from=sultanbogor.example
+Received-SPF: fail (mx.yahoo.example: domain of sultanbogor.example does not
+ designate 198.51.100.77 as permitted sender)
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="===============2747141594494885097=="
+
+--===============2747141594494885097==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+You sent a payment of $749.99 USD to Apple Store Gift Cards.
+If you did not authorise this transaction, cancel the order within 24 hours.
+
+--===============2747141594494885097==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<html><body style=3D"font-family:Arial">
+    <img src=3D"https://www.paypalobjects.example/logo.png" width=3D"120" alt=
+=3D"PayPal">
+    <h2>Receipt for your payment</h2>
+    <p>Dear Customer,</p>
+    <p>You sent a payment of <b>$749.99 USD</b> to Apple Store Gift Cards.</p>
+    <p>If you did not authorise this transaction, you must act immediately.
+    This order will be processed within 24 hours.</p>
+    <p><a href=3D"https://bit.ly/phishkit-demo-refund" style=3D"background:#0=
+070ba;color:#fff;
+    padding:12px 24px;text-decoration:none;border-radius:4px">Cancel the orde=
+r</a></p>
+    <p>Questions? Call our billing department at +1-(888)-000-1234.</p>
+    </body></html>
+
+--===============2747141594494885097==--

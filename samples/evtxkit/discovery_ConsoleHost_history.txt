@@ -1,0 +1,5 @@
+Get-ChildItem
+Get-LocalUser
+Get-Service
+Get-WmiObject -Namespace "root\SecurityCenter2" -Query "SELECT * FROM AntivirusProduct"
+ipconfig /all

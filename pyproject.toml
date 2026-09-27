@@ -1,0 +1,38 @@
+# Optional: nothing here is needed to run the workbench from this folder
+# ("SOC Workbench.bat" or python -m socworkbench). Install it editable to get
+# the command-line tools on PATH -- editable, because the bundled samples
+# and tools/ live next to the code:
+#
+#     pip install -e .                 # socwb, phish, nsm, evtxkit, trafkit
+#     pip install -e ".[window]"       # + a desktop window instead of a browser tab
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "soc-workbench"
+version = "1.0.0"
+description = "Drag-and-drop SOC triage for emails, Windows event logs, network logs and packet captures"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+window = ["pywebview>=5"]        # native desktop window (otherwise: default browser)
+evtx = ["python-evtx>=0.7"]      # .evtx off Windows (on Windows the built-in wevtutil is used)
+msg = ["extract-msg>=0.48"]      # fallback only; .msg is read natively
+scapy = ["scapy>=2.5"]           # opt-in comparison backend + regenerating sample captures
+
+[project.scripts]
+socwb = "socworkbench.__main__:main"
+phish = "phishkit.cli:main"
+nsm = "nsmkit.cli:main"
+evtxkit = "evtxkit.cli:main"
+trafkit = "trafkit.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["phishkit*", "nsmkit*", "evtxkit*", "trafkit*", "soccore*", "socworkbench*"]
+
+[tool.setuptools.package-data]
+socworkbench = ["web/*.html"]

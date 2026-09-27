@@ -1,0 +1,45 @@
+From MAILER-DAEMON Sat Sep 26 08:56:38 2026
+Subject: Shared document: Q3 bonus schedule
+From: "HR Department" <hr@payroll-portal-docs.example>
+To: recipient-a@example.org
+Date: Wed, 11 Sep 2024 07:33:20 -0000
+Message-ID: <179041299829.18700.17149794090735663247@example.org>
+Received: from payroll-portal-docs.example (payroll-portal-docs.example [203.0.113.77]) by mx.example.org with ESMTP id ABC123 for <victim@example.org>; Wed, 11 Sep 2024 07:33:20 -0000
+Authentication-Results: mx.example.org; spf=softfail smtp.mailfrom=payroll-portal-docs.example; dkim=none; dmarc=fail
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+
+Please sign in to view the Q3 bonus schedule before it expires today.
+https://payroll-portal-docs.example/sign-in/verify?u=recipient-a
+
+From MAILER-DAEMON Sat Sep 26 08:56:38 2026
+Subject: Shared document: Q3 bonus schedule
+From: "HR Department" <hr@payroll-portal-docs.example>
+To: recipient-b@example.org
+Date: Wed, 11 Sep 2024 07:34:20 -0000
+Message-ID: <179041299829.18700.17001997009473251686@example.org>
+Received: from payroll-portal-docs.example (payroll-portal-docs.example [203.0.113.77]) by mx.example.org with ESMTP id ABC123 for <victim@example.org>; Wed, 11 Sep 2024 07:34:20 -0000
+Authentication-Results: mx.example.org; spf=softfail smtp.mailfrom=payroll-portal-docs.example; dkim=none; dmarc=fail
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+
+Please sign in to view the Q3 bonus schedule before it expires today.
+https://payroll-portal-docs.example/sign-in/verify?u=recipient-b
+
+From MAILER-DAEMON Sat Sep 26 08:56:38 2026
+Subject: Shared document: Q3 bonus schedule
+From: "HR Department" <hr@payroll-portal-docs.example>
+To: recipient-c@example.org
+Date: Wed, 11 Sep 2024 07:35:20 -0000
+Message-ID: <179041299829.18700.4144175375695239743@example.org>
+Received: from payroll-portal-docs.example (payroll-portal-docs.example [203.0.113.77]) by mx.example.org with ESMTP id ABC123 for <victim@example.org>; Wed, 11 Sep 2024 07:35:20 -0000
+Authentication-Results: mx.example.org; spf=softfail smtp.mailfrom=payroll-portal-docs.example; dkim=none; dmarc=fail
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+
+Please sign in to view the Q3 bonus schedule before it expires today.
+https://payroll-portal-docs.example/sign-in/verify?u=recipient-c
+

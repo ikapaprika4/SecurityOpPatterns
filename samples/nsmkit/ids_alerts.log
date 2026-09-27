@@ -1,0 +1,195 @@
+2025-08-27 12:12:03 [**] [1:2000100:1] ET SCAN Possible SSH/SMB Scan [**] [Classification: Attempted Information Leak] [Priority: 2] {TCP} 203.0.113.10:50001 -> 10.0.0.50:22
+2025-08-27 12:12:33 [**] [1:2000100:1] ET SCAN Possible SSH/SMB Scan [**] [Classification: Attempted Information Leak] [Priority: 2] {TCP} 203.0.113.10:50011 -> 10.0.0.50:445
+2025-08-27 12:12:45 [**] [1:2000100:1] ET SCAN Possible SSH/SMB Scan [**] [Classification: Attempted Information Leak] [Priority: 2] {TCP} 203.0.113.10:50015 -> 10.0.0.50:3389
+2025-08-30 09:14:00 [**] [1:2003000:1] ET WEB_SERVER Possible SQL Injection [**] [Classification: Web Application Attack] [Priority: 1] {TCP} 198.51.100.45:20000 -> 10.0.0.50:80
+2025-08-30 09:14:11 [**] [1:2003001:1] ET WEB_SERVER Possible XSS [**] [Classification: Web Application Attack] [Priority: 1] {TCP} 198.51.100.45:20001 -> 10.0.0.50:80
+2025-08-30 09:14:22 [**] [1:2003002:1] ET WEB_SERVER Possible Directory Traversal [**] [Classification: Web Application Attack] [Priority: 1] {TCP} 198.51.100.45:20002 -> 10.0.0.50:80
+2025-08-30 09:14:33 [**] [1:2003003:1] ET WEB_SERVER Possible Brute Force [**] [Classification: Web Application Attack] [Priority: 1] {TCP} 198.51.100.45:20003 -> 10.0.0.50:80
+2025-08-30 09:14:44 [**] [1:2003004:1] ET WEB_SERVER Possible SQL Injection [**] [Classification: Web Application Attack] [Priority: 1] {TCP} 198.51.100.45:20004 -> 10.0.0.50:80
+2025-08-30 09:14:55 [**] [1:2003005:1] ET WEB_SERVER Possible XSS [**] [Classification: Web Application Attack] [Priority: 1] {TCP} 198.51.100.45:20005 -> 10.0.0.50:80
+2025-08-30 09:15:06 [**] [1:2003006:1] ET WEB_SERVER Possible Directory Traversal [**] [Classification: Web Application Attack] [Priority: 1] {TCP} 198.51.100.45:20006 -> 10.0.0.50:80
+2025-08-30 09:15:17 [**] [1:2003007:1] ET WEB_SERVER Possible Brute Force [**] [Classification: Web Application Attack] [Priority: 1] {TCP} 198.51.100.45:20007 -> 10.0.0.50:80
+2025-08-30 09:15:28 [**] [1:2003008:1] ET WEB_SERVER Possible SQL Injection [**] [Classification: Web Application Attack] [Priority: 1] {TCP} 198.51.100.45:20008 -> 10.0.0.50:80
+2025-08-30 09:15:39 [**] [1:2003009:1] ET WEB_SERVER Possible XSS [**] [Classification: Web Application Attack] [Priority: 1] {TCP} 198.51.100.45:20009 -> 10.0.0.50:80
+2025-08-30 09:15:50 [**] [1:2003010:1] ET WEB_SERVER Possible Directory Traversal [**] [Classification: Web Application Attack] [Priority: 1] {TCP} 198.51.100.45:20010 -> 10.0.0.50:80
+2025-08-30 09:16:01 [**] [1:2003011:1] ET WEB_SERVER Possible Brute Force [**] [Classification: Web Application Attack] [Priority: 1] {TCP} 198.51.100.45:20011 -> 10.0.0.50:80
+2025-09-05 06:00:00 [**] [1:2000200:1] ET SCAN Possible SSH Scan [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2000 -> 10.0.0.20:22
+2025-09-05 06:10:00 [**] [1:2000201:1] ET EXPLOIT Possible MS-SMB Lateral Movement [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2001 -> 10.0.0.50:445
+2025-09-05 06:20:00 [**] [1:2000202:1] ET EXPLOIT Possible RDP Brute Force [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2002 -> 10.0.0.51:3389
+2025-09-05 06:30:00 [**] [1:2000203:1] ET SCAN Possible SSH Scan [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2003 -> 10.0.0.60:22
+2025-09-05 06:40:00 [**] [1:2000204:1] ET EXPLOIT Possible MS-SMB Lateral Movement [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2004 -> 10.0.0.70:445
+2025-09-05 06:50:00 [**] [1:2000205:1] ET EXPLOIT Possible RDP Brute Force [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2005 -> 10.0.0.20:3389
+2025-09-05 07:00:00 [**] [1:2000206:1] ET SCAN Possible SSH Scan [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2006 -> 10.0.0.50:22
+2025-09-05 07:10:00 [**] [1:2000207:1] ET EXPLOIT Possible MS-SMB Lateral Movement [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2007 -> 10.0.0.51:445
+2025-09-05 07:20:00 [**] [1:2000208:1] ET EXPLOIT Possible RDP Brute Force [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2008 -> 10.0.0.60:3389
+2025-09-05 07:30:00 [**] [1:2000209:1] ET SCAN Possible SSH Scan [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2009 -> 10.0.0.70:22
+2025-09-05 07:40:00 [**] [1:2000210:1] ET EXPLOIT Possible MS-SMB Lateral Movement [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2010 -> 10.0.0.20:445
+2025-09-05 07:50:00 [**] [1:2000211:1] ET EXPLOIT Possible RDP Brute Force [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2011 -> 10.0.0.50:3389
+2025-09-05 08:00:00 [**] [1:2000212:1] ET SCAN Possible SSH Scan [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2012 -> 10.0.0.51:22
+2025-09-05 08:10:00 [**] [1:2000213:1] ET EXPLOIT Possible MS-SMB Lateral Movement [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2013 -> 10.0.0.60:445
+2025-09-05 08:20:00 [**] [1:2000214:1] ET EXPLOIT Possible RDP Brute Force [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2014 -> 10.0.0.70:3389
+2025-09-05 08:30:00 [**] [1:2000215:1] ET SCAN Possible SSH Scan [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2015 -> 10.0.0.20:22
+2025-09-05 08:40:00 [**] [1:2000216:1] ET EXPLOIT Possible MS-SMB Lateral Movement [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2016 -> 10.0.0.50:445
+2025-09-05 08:50:00 [**] [1:2000217:1] ET EXPLOIT Possible RDP Brute Force [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2017 -> 10.0.0.51:3389
+2025-09-05 09:00:00 [**] [1:2000218:1] ET SCAN Possible SSH Scan [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2018 -> 10.0.0.60:22
+2025-09-05 09:10:00 [**] [1:2000219:1] ET EXPLOIT Possible MS-SMB Lateral Movement [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2019 -> 10.0.0.70:445
+2025-09-05 09:20:00 [**] [1:2000220:1] ET EXPLOIT Possible RDP Brute Force [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2020 -> 10.0.0.20:3389
+2025-09-05 09:30:00 [**] [1:2000221:1] ET SCAN Possible SSH Scan [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2021 -> 10.0.0.50:22
+2025-09-05 09:40:00 [**] [1:2000222:1] ET EXPLOIT Possible MS-SMB Lateral Movement [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2022 -> 10.0.0.51:445
+2025-09-05 09:50:00 [**] [1:2000223:1] ET EXPLOIT Possible RDP Brute Force [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2023 -> 10.0.0.60:3389
+2025-09-05 10:00:00 [**] [1:2000224:1] ET SCAN Possible SSH Scan [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2024 -> 10.0.0.70:22
+2025-09-05 10:10:00 [**] [1:2000225:1] ET EXPLOIT Possible MS-SMB Lateral Movement [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2025 -> 10.0.0.20:445
+2025-09-05 10:20:00 [**] [1:2000226:1] ET EXPLOIT Possible RDP Brute Force [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2026 -> 10.0.0.50:3389
+2025-09-05 10:30:00 [**] [1:2000227:1] ET SCAN Possible SSH Scan [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2027 -> 10.0.0.51:22
+2025-09-05 10:40:00 [**] [1:2000228:1] ET EXPLOIT Possible MS-SMB Lateral Movement [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2028 -> 10.0.0.60:445
+2025-09-05 10:50:00 [**] [1:2000229:1] ET EXPLOIT Possible RDP Brute Force [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2029 -> 10.0.0.70:3389
+2025-09-05 11:00:00 [**] [1:2000230:1] ET SCAN Possible SSH Scan [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2030 -> 10.0.0.20:22
+2025-09-05 11:10:00 [**] [1:2000231:1] ET EXPLOIT Possible MS-SMB Lateral Movement [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2031 -> 10.0.0.50:445
+2025-09-05 11:20:00 [**] [1:2000232:1] ET EXPLOIT Possible RDP Brute Force [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2032 -> 10.0.0.51:3389
+2025-09-05 11:30:00 [**] [1:2000233:1] ET SCAN Possible SSH Scan [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2033 -> 10.0.0.60:22
+2025-09-05 11:40:00 [**] [1:2000234:1] ET EXPLOIT Possible MS-SMB Lateral Movement [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2034 -> 10.0.0.70:445
+2025-09-05 11:50:00 [**] [1:2000235:1] ET EXPLOIT Possible RDP Brute Force [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2035 -> 10.0.0.20:3389
+2025-09-05 12:00:00 [**] [1:2000236:1] ET SCAN Possible SSH Scan [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2036 -> 10.0.0.50:22
+2025-09-05 12:10:00 [**] [1:2000237:1] ET EXPLOIT Possible MS-SMB Lateral Movement [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2037 -> 10.0.0.51:445
+2025-09-05 12:20:00 [**] [1:2000238:1] ET EXPLOIT Possible RDP Brute Force [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2038 -> 10.0.0.60:3389
+2025-09-05 12:30:00 [**] [1:2000239:1] ET SCAN Possible SSH Scan [**] [Classification: Attempted Unauthorized Access] [Priority: 1] {TCP} 10.8.0.66:2039 -> 10.0.0.70:22
+2025-09-11 00:59:45 [**] [1:2001000:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30000 -> 203.0.113.10:4444
+2025-09-11 04:00:05 [**] [1:2001001:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30001 -> 203.0.113.10:4444
+2025-09-11 07:00:04 [**] [1:2001002:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30002 -> 203.0.113.10:4444
+2025-09-11 09:59:57 [**] [1:2001003:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30003 -> 203.0.113.10:4444
+2025-09-11 13:00:17 [**] [1:2001004:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30004 -> 203.0.113.10:4444
+2025-09-11 16:00:21 [**] [1:2001005:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30005 -> 203.0.113.10:4444
+2025-09-11 18:59:49 [**] [1:2001006:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30006 -> 203.0.113.10:4444
+2025-09-11 21:59:38 [**] [1:2001007:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30007 -> 203.0.113.10:4444
+2025-09-12 00:59:46 [**] [1:2001008:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30008 -> 203.0.113.10:4444
+2025-09-12 03:59:57 [**] [1:2001009:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30009 -> 203.0.113.10:4444
+2025-09-12 06:59:56 [**] [1:2001010:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30010 -> 203.0.113.10:4444
+2025-09-12 09:59:35 [**] [1:2001011:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30011 -> 203.0.113.10:4444
+2025-09-12 13:00:04 [**] [1:2001012:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30012 -> 203.0.113.10:4444
+2025-09-12 16:00:04 [**] [1:2001013:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30013 -> 203.0.113.10:4444
+2025-09-12 18:59:51 [**] [1:2001014:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30014 -> 203.0.113.10:4444
+2025-09-12 21:59:52 [**] [1:2001015:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30015 -> 203.0.113.10:4444
+2025-09-13 00:59:35 [**] [1:2001016:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30016 -> 203.0.113.10:4444
+2025-09-13 04:00:00 [**] [1:2001017:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30017 -> 203.0.113.10:4444
+2025-09-13 07:00:30 [**] [1:2001018:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30018 -> 203.0.113.10:4444
+2025-09-13 10:00:15 [**] [1:2001019:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30019 -> 203.0.113.10:4444
+2025-09-13 13:00:25 [**] [1:2001020:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30020 -> 203.0.113.10:4444
+2025-09-13 16:00:03 [**] [1:2001021:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30021 -> 203.0.113.10:4444
+2025-09-13 19:00:06 [**] [1:2001022:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30022 -> 203.0.113.10:4444
+2025-09-13 21:59:46 [**] [1:2001023:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30023 -> 203.0.113.10:4444
+2025-09-14 00:59:48 [**] [1:2001024:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30024 -> 203.0.113.10:4444
+2025-09-14 03:59:46 [**] [1:2001025:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30025 -> 203.0.113.10:4444
+2025-09-14 07:00:28 [**] [1:2001026:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30026 -> 203.0.113.10:4444
+2025-09-14 10:00:04 [**] [1:2001027:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30027 -> 203.0.113.10:4444
+2025-09-14 12:59:55 [**] [1:2001028:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30028 -> 203.0.113.10:4444
+2025-09-14 15:59:44 [**] [1:2001029:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30029 -> 203.0.113.10:4444
+2025-09-14 19:00:06 [**] [1:2001030:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30030 -> 203.0.113.10:4444
+2025-09-14 22:00:16 [**] [1:2001031:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30031 -> 203.0.113.10:4444
+2025-09-15 00:59:53 [**] [1:2001032:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30032 -> 203.0.113.10:4444
+2025-09-15 03:59:31 [**] [1:2001033:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30033 -> 203.0.113.10:4444
+2025-09-15 07:00:21 [**] [1:2001034:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30034 -> 203.0.113.10:4444
+2025-09-15 09:59:49 [**] [1:2001035:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30035 -> 203.0.113.10:4444
+2025-09-15 12:59:43 [**] [1:2001036:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30036 -> 203.0.113.10:4444
+2025-09-15 16:00:23 [**] [1:2001037:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30037 -> 203.0.113.10:4444
+2025-09-15 19:00:08 [**] [1:2001038:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30038 -> 203.0.113.10:4444
+2025-09-15 21:59:57 [**] [1:2001039:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30039 -> 203.0.113.10:4444
+2025-09-16 01:00:14 [**] [1:2001040:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30040 -> 203.0.113.10:4444
+2025-09-16 04:00:03 [**] [1:2001041:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30041 -> 203.0.113.10:4444
+2025-09-16 07:00:24 [**] [1:2001042:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30042 -> 203.0.113.10:4444
+2025-09-16 10:00:10 [**] [1:2001043:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30043 -> 203.0.113.10:4444
+2025-09-16 12:59:50 [**] [1:2001044:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30044 -> 203.0.113.10:4444
+2025-09-16 16:00:23 [**] [1:2001045:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30045 -> 203.0.113.10:4444
+2025-09-16 19:00:20 [**] [1:2001046:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30046 -> 203.0.113.10:4444
+2025-09-16 22:00:13 [**] [1:2001047:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30047 -> 203.0.113.10:4444
+2025-09-17 01:00:08 [**] [1:2001048:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30048 -> 203.0.113.10:4444
+2025-09-17 03:59:45 [**] [1:2001049:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30049 -> 203.0.113.10:4444
+2025-09-17 07:00:24 [**] [1:2001050:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30050 -> 203.0.113.10:4444
+2025-09-17 10:00:27 [**] [1:2001051:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30051 -> 203.0.113.10:4444
+2025-09-17 13:00:06 [**] [1:2001052:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30052 -> 203.0.113.10:4444
+2025-09-17 16:00:12 [**] [1:2001053:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30053 -> 203.0.113.10:4444
+2025-09-17 19:00:28 [**] [1:2001054:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30054 -> 203.0.113.10:4444
+2025-09-17 22:00:25 [**] [1:2001055:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30055 -> 203.0.113.10:4444
+2025-09-18 00:59:54 [**] [1:2001056:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30056 -> 203.0.113.10:4444
+2025-09-18 03:00:00 [**] [1:2002000:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40000 -> 203.0.113.10:8080
+2025-09-18 04:00:13 [**] [1:2001057:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30057 -> 203.0.113.10:4444
+2025-09-18 06:59:35 [**] [1:2001058:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30058 -> 203.0.113.10:4444
+2025-09-18 07:00:00 [**] [1:2002001:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40001 -> 203.0.113.10:80
+2025-09-18 10:00:10 [**] [1:2001059:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30059 -> 203.0.113.10:4444
+2025-09-18 11:00:00 [**] [1:2002002:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40002 -> 203.0.113.10:80
+2025-09-18 13:00:15 [**] [1:2001060:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30060 -> 203.0.113.10:4444
+2025-09-18 15:00:00 [**] [1:2002003:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40003 -> 203.0.113.10:8080
+2025-09-18 16:00:22 [**] [1:2001061:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30061 -> 203.0.113.10:4444
+2025-09-18 18:59:42 [**] [1:2001062:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30062 -> 203.0.113.10:4444
+2025-09-18 19:00:00 [**] [1:2002004:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40004 -> 203.0.113.10:80
+2025-09-18 21:59:54 [**] [1:2001063:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30063 -> 203.0.113.10:4444
+2025-09-18 23:00:00 [**] [1:2002005:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40005 -> 203.0.113.10:80
+2025-09-19 01:00:04 [**] [1:2001064:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30064 -> 203.0.113.10:4444
+2025-09-19 03:00:00 [**] [1:2002006:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40006 -> 203.0.113.10:8080
+2025-09-19 04:00:26 [**] [1:2001065:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30065 -> 203.0.113.10:4444
+2025-09-19 07:00:00 [**] [1:2002007:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40007 -> 203.0.113.10:80
+2025-09-19 07:00:09 [**] [1:2001066:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30066 -> 203.0.113.10:4444
+2025-09-19 10:00:07 [**] [1:2001067:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30067 -> 203.0.113.10:4444
+2025-09-19 11:00:00 [**] [1:2002008:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40008 -> 203.0.113.10:80
+2025-09-19 13:00:12 [**] [1:2001068:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30068 -> 203.0.113.10:4444
+2025-09-19 15:00:00 [**] [1:2002009:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40009 -> 203.0.113.10:8080
+2025-09-19 16:00:28 [**] [1:2001069:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30069 -> 203.0.113.10:4444
+2025-09-19 19:00:00 [**] [1:2002010:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40010 -> 203.0.113.10:80
+2025-09-19 19:00:17 [**] [1:2001070:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30070 -> 203.0.113.10:4444
+2025-09-19 21:59:57 [**] [1:2001071:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30071 -> 203.0.113.10:4444
+2025-09-19 23:00:00 [**] [1:2002011:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40011 -> 203.0.113.10:80
+2025-09-20 00:59:55 [**] [1:2001072:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30072 -> 203.0.113.10:4444
+2025-09-20 03:00:00 [**] [1:2002012:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40012 -> 203.0.113.10:8080
+2025-09-20 04:00:19 [**] [1:2001073:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30073 -> 203.0.113.10:4444
+2025-09-20 06:59:43 [**] [1:2001074:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30074 -> 203.0.113.10:4444
+2025-09-20 07:00:00 [**] [1:2002013:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40013 -> 203.0.113.10:80
+2025-09-20 10:00:19 [**] [1:2001075:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30075 -> 203.0.113.10:4444
+2025-09-20 11:00:00 [**] [1:2002014:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40014 -> 203.0.113.10:80
+2025-09-20 12:59:38 [**] [1:2001076:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30076 -> 203.0.113.10:4444
+2025-09-20 15:00:00 [**] [1:2002015:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40015 -> 203.0.113.10:8080
+2025-09-20 16:00:17 [**] [1:2001077:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30077 -> 203.0.113.10:4444
+2025-09-20 18:59:34 [**] [1:2001078:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30078 -> 203.0.113.10:4444
+2025-09-20 19:00:00 [**] [1:2002016:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40016 -> 203.0.113.10:80
+2025-09-20 22:00:20 [**] [1:2001079:1] ET TROJAN Possible C2 Beaconing [**] [Classification: A network Trojan was detected] [Priority: 1] {TCP} 10.0.0.51:30079 -> 203.0.113.10:4444
+2025-09-20 23:00:00 [**] [1:2002017:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40017 -> 203.0.113.10:80
+2025-09-21 03:00:00 [**] [1:2002018:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40018 -> 203.0.113.10:8080
+2025-09-21 07:00:00 [**] [1:2002019:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40019 -> 203.0.113.10:80
+2025-09-21 11:00:00 [**] [1:2002020:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40020 -> 203.0.113.10:80
+2025-09-21 15:00:00 [**] [1:2002021:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40021 -> 203.0.113.10:8080
+2025-09-21 19:00:00 [**] [1:2002022:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40022 -> 203.0.113.10:80
+2025-09-21 23:00:00 [**] [1:2002023:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40023 -> 203.0.113.10:80
+2025-09-22 03:00:00 [**] [1:2002024:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40024 -> 203.0.113.10:8080
+2025-09-22 07:00:00 [**] [1:2002025:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40025 -> 203.0.113.10:80
+2025-09-22 11:00:00 [**] [1:2002026:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40026 -> 203.0.113.10:80
+2025-09-22 15:00:00 [**] [1:2002027:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40027 -> 203.0.113.10:8080
+2025-09-22 19:00:00 [**] [1:2002028:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40028 -> 203.0.113.10:80
+2025-09-22 23:00:00 [**] [1:2002029:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40029 -> 203.0.113.10:80
+2025-09-23 03:00:00 [**] [1:2002030:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40030 -> 203.0.113.10:8080
+2025-09-23 07:00:00 [**] [1:2002031:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40031 -> 203.0.113.10:80
+2025-09-23 11:00:00 [**] [1:2002032:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40032 -> 203.0.113.10:80
+2025-09-23 15:00:00 [**] [1:2002033:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40033 -> 203.0.113.10:8080
+2025-09-23 19:00:00 [**] [1:2002034:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40034 -> 203.0.113.10:80
+2025-09-23 23:00:00 [**] [1:2002035:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40035 -> 203.0.113.10:80
+2025-09-24 03:00:00 [**] [1:2002036:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40036 -> 203.0.113.10:8080
+2025-09-24 07:00:00 [**] [1:2002037:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40037 -> 203.0.113.10:80
+2025-09-24 11:00:00 [**] [1:2002038:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40038 -> 203.0.113.10:80
+2025-09-24 15:00:00 [**] [1:2002039:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40039 -> 203.0.113.10:8080
+2025-09-24 19:00:00 [**] [1:2002040:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40040 -> 203.0.113.10:80
+2025-09-24 23:00:00 [**] [1:2002041:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40041 -> 203.0.113.10:80
+2025-09-25 03:00:00 [**] [1:2002042:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40042 -> 203.0.113.10:8080
+2025-09-25 07:00:00 [**] [1:2002043:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40043 -> 203.0.113.10:80
+2025-09-25 11:00:00 [**] [1:2002044:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40044 -> 203.0.113.10:80
+2025-09-25 15:00:00 [**] [1:2002045:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40045 -> 203.0.113.10:8080
+2025-09-25 19:00:00 [**] [1:2002046:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40046 -> 203.0.113.10:80
+2025-09-25 23:00:00 [**] [1:2002047:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40047 -> 203.0.113.10:80
+2025-09-26 03:00:00 [**] [1:2002048:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40048 -> 203.0.113.10:8080
+2025-09-26 07:00:00 [**] [1:2002049:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40049 -> 203.0.113.10:80
+2025-09-26 11:00:00 [**] [1:2002050:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40050 -> 203.0.113.10:80
+2025-09-26 15:00:00 [**] [1:2002051:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40051 -> 203.0.113.10:8080
+2025-09-26 19:00:00 [**] [1:2002052:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40052 -> 203.0.113.10:80
+2025-09-26 23:00:00 [**] [1:2002053:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40053 -> 203.0.113.10:80
+2025-09-27 03:00:00 [**] [1:2002054:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40054 -> 203.0.113.10:8080
+2025-09-27 07:00:00 [**] [1:2002055:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40055 -> 203.0.113.10:80
+2025-09-27 11:00:00 [**] [1:2002056:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40056 -> 203.0.113.10:80
+2025-09-27 15:00:00 [**] [1:2002057:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40057 -> 203.0.113.10:8080
+2025-09-27 19:00:00 [**] [1:2002058:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40058 -> 203.0.113.10:80
+2025-09-27 23:00:00 [**] [1:2002059:1] ET INFO Possible HTTP POST Large Upload [**] [Classification: Potential Data Exfiltration] [Priority: 2] {TCP} 10.0.0.51:40059 -> 203.0.113.10:80
