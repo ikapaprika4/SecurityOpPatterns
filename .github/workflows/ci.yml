@@ -1,4 +1,5 @@
-﻿name: CI
+﻿@"
+name: CI
 
 on:
   push:
@@ -33,3 +34,26 @@ jobs:
 
       - name: Smoke-test the image actually runs
         run: docker run --rm evtxkit:ci-test --help
+
+  push-to-registry:
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: `${{ secrets.DOCKERHUB_USERNAME }}
+          password: `${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push, tagged with the commit SHA
+        run: |
+          docker build -f Dockerfile.evtxkit \
+            -t `${{ secrets.DOCKERHUB_USERNAME }}/socscript:`${{ github.sha }} \
+            -t `${{ secrets.DOCKERHUB_USERNAME }}/socscript:latest .
+          docker push `${{ secrets.DOCKERHUB_USERNAME }}/socscript:`${{ github.sha }}
+          docker push `${{ secrets.DOCKERHUB_USERNAME }}/socscript:latest
+"@ | Out-File -Encoding utf8 ci.yml
