@@ -1,0 +1,13 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: socscript-job
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      containers:
+        - name: socscript
+          image: mitlinux1/socscript:latest
+          args: ["rules"]
+      restartPolicy: Never
