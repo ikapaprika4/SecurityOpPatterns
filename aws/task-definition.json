@@ -9,15 +9,9 @@
   "containerDefinitions": [
     {
       "name": "evtxkit",
-      "image": "772325758655.dkr.ecr.eu-north-1.amazonaws.com/evtxkit:v2",
+      "image": "772325758655.dkr.ecr.eu-north-1.amazonaws.com/evtxkit:v1",
       "essential": true,
       "command": ["rules"],
-      "environment": [
-        {
-          "name": "REPORT_BUCKET",
-          "value": "evtxkit-reports-772325758655"
-        }
-      ],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
