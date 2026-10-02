@@ -9,6 +9,12 @@ UI that renders their contents, so:
   embedded; other sites can neither read it nor set the custom header
   without a CORS preflight, which is never granted), and the Host header
   must be this loopback origin (blocks DNS-rebinding);
+* "exposed" mode (--host 0.0.0.0, for containers: a published port arrives
+  on the container's network interface, never on its loopback) is opt-in
+  and adds a lock instead of removing one: the page itself is only served
+  to a request carrying the token, so reaching the port is not enough.
+  The Host check stays (loopback names, on any port because the published
+  port differs from ours, plus hosts explicitly allowed);
 * uploads are streamed into a private temporary folder under generated
   names -- a dropped "../../x" can't escape it -- and the folder is deleted
   on exit;
@@ -43,11 +49,23 @@ from .export import EXPORTS, filename as export_filename, render as render_expor
 WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 MAX_UPLOAD = 8 * 1024 ** 3                     # per file
 IDLE_SHUTDOWN_S = 15 * 60                      # browser mode: no page open, no work
+LOOPBACK_BINDS = ("127.0.0.1", "localhost")
+LOOPBACK_NAMES = ("127.0.0.1", "localhost", "[::1]")
 log = logging.getLogger("socworkbench")
 
 
+def host_name(host_header: str) -> str:
+    """'localhost:8765' -> 'localhost', '[::1]:80' -> '[::1]' (lower-cased)."""
+    h = host_header.strip().lower()
+    if h.startswith("["):
+        return h[:h.index("]") + 1] if "]" in h else h
+    return h.rsplit(":", 1)[0] if ":" in h else h
+
+
 class Session:
-    def __init__(self):
+    def __init__(self, exposed: bool = False, allowed_hosts=()):
+        self.exposed = exposed                 # listening beyond loopback (container mode)
+        self.allowed_hosts = {h.strip().lower() for h in allowed_hosts if h.strip()}
         self.token = secrets.token_urlsafe(24)
         self.workdir = tempfile.mkdtemp(prefix="socwb-")
         self.lock = threading.RLock()
@@ -185,8 +203,17 @@ class Handler(BaseHTTPRequestHandler):
         self._json({"error": msg}, status)
 
     def _host_ok(self) -> bool:
+        host = self.headers.get("Host", "").strip().lower()
         port = self.server.server_address[1]
-        return self.headers.get("Host", "") in (f"127.0.0.1:{port}", f"localhost:{port}")
+        if host in (f"127.0.0.1:{port}", f"localhost:{port}"):
+            return True
+        s = self.session
+        if host in s.allowed_hosts or host_name(host) in s.allowed_hosts:
+            return True
+        # Published by Docker / kubectl port-forward, the browser's port is the
+        # mapped one, not ours. A DNS-rebinding page still arrives under its
+        # own host name, so a loopback *name* is what has to match.
+        return s.exposed and host_name(host) in LOOPBACK_NAMES
 
     def _authorised(self, query: dict) -> bool:
         token = self.headers.get("X-SOCWB-Token") or (query.get("t") or [""])[0]
@@ -206,6 +233,8 @@ class Handler(BaseHTTPRequestHandler):
         if not self._host_ok():
             return self._error(HTTPStatus.FORBIDDEN, "bad host")
         if method == "GET" and not parts:
+            if self.session.exposed and not self._authorised(query):
+                return self._send(HTTPStatus.UNAUTHORIZED, _LOCKED_PAGE, "text/html; charset=utf-8")
             return self._index()
         if method == "GET" and parts == ["favicon.svg"]:
             return self._send(200, _FAVICON, "image/svg+xml")
@@ -368,10 +397,23 @@ _FAVICON = (b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect 
             b'stroke-linejoin="round"/></svg>')
 
 
-def make_server(port: int = 0) -> tuple[ThreadingHTTPServer, Session]:
-    session = Session()
+_LOCKED_PAGE = (b"<!doctype html><meta charset='utf-8'><title>SOC Workbench</title>"
+                b"<body style='font:16px system-ui;max-width:40em;margin:15vh auto;padding:0 1em'>"
+                b"<h1>SOC Workbench</h1><p>This address needs its access link. Open the link the "
+                b"workbench printed when it started; it ends in <code>?t=...</code> "
+                b"(in Docker: <code>docker logs &lt;container&gt;</code>).</p>")
+
+
+def make_server(port: int = 0, host: str = "127.0.0.1", allowed_hosts=(),
+                exposed: Optional[bool] = None) -> tuple[ThreadingHTTPServer, Session]:
+    """`host` other than loopback switches the session to exposed mode (see
+    the module docstring); the default is loopback-only. `exposed` forces the
+    mode (tests exercise it without listening on every interface)."""
+    if exposed is None:
+        exposed = host not in LOOPBACK_BINDS
+    session = Session(exposed=exposed, allowed_hosts=allowed_hosts)
     handler = type("BoundHandler", (Handler,), {"session": session})
-    httpd = ThreadingHTTPServer(("127.0.0.1", port), handler)
+    httpd = ThreadingHTTPServer((host, port), handler)
     httpd.daemon_threads = True
     session.server = httpd
     return httpd, session
@@ -379,3 +421,8 @@ def make_server(port: int = 0) -> tuple[ThreadingHTTPServer, Session]:
 
 def url_for(httpd: ThreadingHTTPServer) -> str:
     return f"http://127.0.0.1:{httpd.server_address[1]}/"
+
+
+def access_url(httpd: ThreadingHTTPServer, session: Session, port: Optional[int] = None) -> str:
+    """The link to open in exposed mode: it carries the token."""
+    return f"http://localhost:{port or httpd.server_address[1]}/?t={session.token}"

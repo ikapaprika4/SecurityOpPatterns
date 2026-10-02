@@ -1,0 +1,12 @@
+# Keep the build context to what the images actually copy.
+.git
+.github
+**/__pycache__
+**/*.pyc
+*.zip
+docs
+k8s
+aws
+infra
+*.md
+*.bat

@@ -249,10 +249,13 @@ class TestExports(TempDirCase):
 # HTTP server
 # --------------------------------------------------------------------------
 
-class TestServer(unittest.TestCase):
+class ServerCase(unittest.TestCase):
+    """A running server plus request helpers; subclasses hold the tests."""
+    SERVER_ARGS: dict = {}
+
     @classmethod
     def setUpClass(cls):
-        cls.httpd, cls.session = make_server(0)
+        cls.httpd, cls.session = make_server(0, **cls.SERVER_ARGS)
         cls.port = cls.httpd.server_address[1]
         cls.thread = threading.Thread(target=cls.httpd.serve_forever, daemon=True)
         cls.thread.start()
@@ -295,6 +298,8 @@ class TestServer(unittest.TestCase):
             time.sleep(0.05)
         self.fail(f"job {job_id} did not finish")
 
+
+class TestServer(ServerCase):
     def test_page_embeds_the_token_under_a_strict_csp(self):
         status, h, body = self.req("GET", "/", token=False)
         self.assertEqual(status, 200)
@@ -312,6 +317,10 @@ class TestServer(unittest.TestCase):
     def test_foreign_host_header_is_refused(self):                 # DNS rebinding
         for path in ("/", "/api/info"):
             self.assertEqual(self.req("GET", path, host=f"attacker.example:{self.port}")[0], 403)
+
+    def test_loopback_mode_wants_its_exact_port(self):
+        self.assertEqual(self.req("GET", "/api/info", host="localhost:1")[0], 403)
+        self.assertEqual(self.req("GET", "/api/info", host=f"localhost:{self.port}")[0], 200)
 
     def test_upload_analyse_export_round_trip(self):
         bid = self.api("POST", "/api/batch", {"label": "round trip"})["batch"]
@@ -356,6 +365,109 @@ class TestServer(unittest.TestCase):
         self.assertEqual(self.req("GET", "/api/job/nope")[0], 400)
         self.assertEqual(self.req("GET", "/api/case/nope/export/json")[0], 400)
         self.assertEqual(self.req("GET", "/api/nothing-here")[0], 404)
+
+
+class TestExposedServer(ServerCase):
+    """--host 0.0.0.0 (containers): reaching the port must not be enough."""
+    SERVER_ARGS = {"exposed": True, "allowed_hosts": ["soc.internal:8443"]}
+
+    def test_page_is_locked_without_the_token(self):
+        status, _h, body = self.req("GET", "/", token=False)
+        self.assertEqual(status, 401)
+        self.assertNotIn(self.session.token.encode(), body)        # the lock page must not leak it
+        self.assertEqual(self.req("GET", "/?t=guess", token=False)[0], 401)
+
+    def test_access_link_opens_the_page(self):
+        status, h, body = self.req("GET", f"/?t={self.session.token}", token=False)
+        self.assertEqual(status, 200)
+        self.assertIn(self.session.token.encode(), body)
+        self.assertIn("default-src 'none'", h["content-security-policy"])
+
+    def test_api_still_needs_the_token(self):
+        self.assertEqual(self.req("GET", "/api/info", token=False)[0], 401)
+        self.assertEqual(self.api("GET", "/api/info")["token_ok"], True)
+
+    def test_published_port_may_differ_but_the_name_must_be_loopback(self):
+        # docker run -p 9000:8765 -> the browser says "localhost:9000".
+        for host in ("localhost:9000", "127.0.0.1:1", "[::1]:9000", "localhost"):
+            self.assertEqual(self.req("GET", "/api/info", host=host)[0], 200, host)
+        for host in (f"attacker.example:{self.port}", "localhost.attacker.example", "127.0.0.1.attacker.example:80"):
+            self.assertEqual(self.req("GET", "/api/info", host=host)[0], 403, host)
+
+    def test_explicitly_allowed_host(self):
+        self.assertEqual(self.req("GET", "/api/info", host="soc.internal:8443")[0], 200)
+        self.assertEqual(self.req("GET", "/api/info", host="soc.internal:9999")[0], 403)
+
+
+# --------------------------------------------------------------------------
+# Headless triage and the socscript entry point
+# --------------------------------------------------------------------------
+
+class TestBatch(TempDirCase):
+    def run_batch(self, *argv) -> int:
+        from socworkbench import batch
+        return batch.main([*argv, "-q"])
+
+    def test_exit_code_follows_the_worst_case(self):
+        self.assertEqual(self.run_batch(LEGIT, CLEAN_PCAP), 0)
+        self.assertEqual(self.run_batch(LEGIT, BEC), 1)                       # phishing = high
+        self.assertEqual(self.run_batch(LEGIT, BEC, "--fail-on", "critical"), 0)
+        self.assertEqual(self.run_batch(HTTP_PCAP, "--fail-on", "never"), 0)
+
+    def test_unreadable_evidence_never_passes_as_clean(self):
+        broken = write(self.tmp, "broken.pcapng", b"\x0a\x0d\x0d\x0a" + bytes(range(200)))
+        self.assertEqual(self.run_batch(LEGIT, broken), 2)                    # incomplete
+        self.assertEqual(self.run_batch(BEC, broken), 1)                      # a finding outranks it
+        self.assertEqual(self.run_batch(write(self.tmp, "notes.txt", b"just a note\n")), 2)
+
+    def test_reports_are_written_per_case(self):
+        out = os.path.join(self.tmp, "out")
+        self.assertEqual(self.run_batch(BEC, HTTP_PCAP, "-o", out), 1)
+        with open(os.path.join(out, "summary.json"), encoding="utf-8") as fh:
+            summary = json.load(fh)
+        self.assertEqual((summary["exit_code"], summary["worst_level"], len(summary["cases"])), (1, "critical", 2))
+        for case in summary["cases"]:
+            self.assertIn("report.html", case["files"])
+            for name in case["files"]:
+                self.assertGreater(os.path.getsize(os.path.join(out, case["folder"], name)), 0)
+        with open(os.path.join(out, "combined-blocklist.txt"), encoding="utf-8") as fh:
+            self.assertIn("m_ellis.finance@gmail.com", fh.read())
+
+    def test_formats_can_be_limited(self):
+        out = os.path.join(self.tmp, "out")
+        self.run_batch(BEC, "-o", out, "--formats", "json")
+        folder = next(d for d in os.listdir(out) if os.path.isdir(os.path.join(out, d)))
+        self.assertEqual(os.listdir(os.path.join(out, folder)), ["case.json"])
+
+
+class TestSocscript(unittest.TestCase):
+    def run_tool(self, *argv):
+        import contextlib
+        import io
+        import socscript
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            code = socscript.main(list(argv))
+        return code, buf.getvalue()
+
+    def test_usage_and_version(self):
+        code, out = self.run_tool()
+        self.assertEqual(code, 0)
+        self.assertIn("triage", out)
+        self.assertIn("SOC Workbench", self.run_tool("version")[1])
+
+    def test_each_tool_is_reachable(self):
+        for tool, marker in (("evtxkit", "EVTX-"), ("phish", "PH-"), ("nsm", "NSM-"), ("trafkit", "SCAN-")):
+            code, out = self.run_tool(tool, "rules")
+            self.assertEqual(code, 0, tool)
+            self.assertIn(marker, out, tool)
+        self.assertEqual(self.run_tool("triage", LEGIT, "-q")[0], 0)
+
+    def test_anything_else_is_an_evtxkit_command_line(self):
+        # The evtxkit-only image's commands (`rules`) must keep working.
+        code, out = self.run_tool("rules")
+        self.assertEqual(code, 0)
+        self.assertIn("EVTX-LOGON-BRUTE", out)
 
 
 if __name__ == "__main__":

@@ -121,6 +121,14 @@ def _local(tag: str) -> str:
     return tag.rsplit("}", 1)[-1]
 
 
+_STRING_ARRAY = re.compile(r"<string>(.*?)</string>", re.S)
+
+
+def _xml_unescape(text: str) -> str:
+    return (text.replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", '"')
+            .replace("&apos;", "'").replace("&amp;", "&"))
+
+
 def _find(parent, tag: str):
     """Namespaced-then-bare find, without the classic ElementTree trap:
     `elem_a or elem_b` is wrong here because an Element with no child
@@ -167,7 +175,19 @@ def _element_to_record(root, index: int, raw: str = "") -> Optional[EventRecord]
             if name:
                 data[name] = d.text or ""
             elif d.text:
-                data[f"Data{i}"] = d.text            # classic events: unnamed values
+                # Classic events carry unnamed values. wevtutil / Event Viewer
+                # write one <Data> per value; python-evtx (the reader used off
+                # Windows) packs them all into one <Data> as
+                # "<string>a</string>\n<string>b</string>". Both must end up
+                # as the same Data0, Data1, ... keys, or a rule would match on
+                # one platform and not on the other.
+                packed = _STRING_ARRAY.findall(d.text) if d.text.lstrip().startswith("<string>") else None
+                if packed is None:
+                    data[f"Data{i}"] = d.text
+                else:
+                    for j, item in enumerate(packed):
+                        if item:
+                            data[f"Data{i + j}"] = _xml_unescape(item)
     # UserData (1102 / 104 "log cleared", some Task Scheduler events) nests
     # its fields one level down in a provider-specific element.
     user_data = _find(root, "UserData")
@@ -289,19 +309,40 @@ def _evtx_via_python_evtx(path: str) -> list[EventRecord]:
     return events
 
 
-def parse_evtx_file(path: str) -> list[EventRecord]:
-    """Real binary .evtx ingestion: Windows' own wevtutil when available
-    (no dependency), otherwise the optional `python-evtx` package."""
-    if os.name == "nt" and shutil.which("wevtutil"):
-        return _evtx_via_wevtutil(path)
+def _evtx_native(path: str, status: Optional[dict] = None) -> list[EventRecord]:
+    from .evtx import EvtxError, iter_events
+
+    status = status if status is not None else {}
     try:
-        return _evtx_via_python_evtx(path)
-    except ImportError as exc:
-        raise EventParseError(
-            "reading a .evtx file off Windows needs the optional 'python-evtx' package "
-            "(pip install python-evtx). On Windows no install is needed -- the built-in "
-            "wevtutil is used. Alternatively export the log as XML or JSON first."
-        ) from exc
+        events = _records_from_elements(iter_events(path, status), path)
+    except EvtxError as exc:
+        raise EventParseError(str(exc)) from exc
+    if status.get("skipped") and not events:
+        raise EventParseError(f"{os.path.basename(path)}: none of its {status['skipped']:,} "
+                              "records could be decoded -- the file is damaged")
+    return events
+
+
+EVTX_READERS = ("wevtutil", "native", "python-evtx")
+
+
+def parse_evtx_file(path: str, status: Optional[dict] = None, reader: Optional[str] = None) -> list[EventRecord]:
+    """Real binary .evtx ingestion, no install needed anywhere: Windows' own
+    wevtutil where it exists, evtxkit's native reader (evtx.py) everywhere
+    else. Both produce the same records; EVTXKIT_EVTX_READER (or `reader`)
+    forces one of wevtutil | native | python-evtx, which is how they are
+    compared. `status` (native reader) reports `records` and `skipped`."""
+    reader = (reader or os.environ.get("EVTXKIT_EVTX_READER") or "").lower()
+    if reader and reader not in EVTX_READERS:
+        raise EventParseError(f"unknown .evtx reader {reader!r} ({' | '.join(EVTX_READERS)})")
+    if reader == "python-evtx":
+        try:
+            return _evtx_via_python_evtx(path)
+        except ImportError as exc:
+            raise EventParseError("the python-evtx reader needs: pip install python-evtx") from exc
+    if reader == "wevtutil" or (not reader and os.name == "nt" and shutil.which("wevtutil")):
+        return _evtx_via_wevtutil(path)
+    return _evtx_native(path, status)
 
 
 # --------------------------------------------------------------------------

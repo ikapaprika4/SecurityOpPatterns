@@ -5,6 +5,8 @@ Start the workbench.
     python -m socworkbench FILES...        ...and analyse these straight away
     python -m socworkbench --browser       always use the default browser
     python -m socworkbench --no-open       just serve; print the URL
+    python -m socworkbench --host 0.0.0.0  serve beyond this machine (containers);
+                                           the page then needs the printed ?t= link
 
 Files dropped onto "SOC Workbench.bat" arrive here as arguments.
 """
@@ -14,6 +16,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import signal
 import sys
 import tempfile
 import threading
@@ -26,16 +29,18 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from socworkbench import __version__  # noqa: E402
-from socworkbench.server import IDLE_SHUTDOWN_S, make_server, url_for  # noqa: E402
+from socworkbench.server import (IDLE_SHUTDOWN_S, LOOPBACK_BINDS, access_url,  # noqa: E402
+                                 make_server, url_for)
 
 LOG_DIR = os.path.join(os.environ.get("LOCALAPPDATA") or tempfile.gettempdir(), "SOCWorkbench", "logs")
 log = logging.getLogger("socworkbench")
 
 
-def _setup_logging() -> None:
+def _setup_logging(console: bool = False) -> None:
     """The log is the only diagnostic under pythonw (no console). It lives
     with the user's app data, never in the project folder: it holds local
-    paths (user name included) that must not travel with a shared copy."""
+    paths (user name included) that must not travel with a shared copy.
+    `console` also logs to stderr (server mode: `docker logs` reads that)."""
     for folder in (LOG_DIR, os.path.join(tempfile.gettempdir(), "SOCWorkbench", "logs")):
         try:
             os.makedirs(folder, exist_ok=True)
@@ -49,8 +54,10 @@ def _setup_logging() -> None:
     root = logging.getLogger()
     root.setLevel(logging.INFO)
     root.addHandler(handler)
-    if sys.stderr is not None and sys.stderr.isatty():
-        root.addHandler(logging.StreamHandler())
+    if sys.stderr is not None and (console or sys.stderr.isatty()):
+        stream = logging.StreamHandler()
+        stream.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+        root.addHandler(stream)
 
 
 class WindowApi:
@@ -133,19 +140,42 @@ def _idle_watchdog(session) -> None:
             return
 
 
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name) or default)
+    except ValueError:
+        return default
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="socworkbench", description="SOC Workbench")
     ap.add_argument("files", nargs="*", help="evidence to analyse on start")
     ap.add_argument("--browser", action="store_true", help="use the default browser, not a window")
     ap.add_argument("--no-open", action="store_true", help="only serve; print the URL")
-    ap.add_argument("--port", type=int, default=0, help="port (default: a random free one)")
+    ap.add_argument("--port", type=int, default=_env_int("SOCWB_PORT", 0),
+                    help="port (default: a random free one; env SOCWB_PORT)")
+    ap.add_argument("--host", default=os.environ.get("SOCWB_HOST") or "127.0.0.1",
+                    help="address to listen on (default 127.0.0.1; env SOCWB_HOST). Anything else -- "
+                         "0.0.0.0 inside a container -- serves beyond this machine, and the page "
+                         "then only opens through the printed ?t= access link")
+    ap.add_argument("--allow-host", action="append", default=[], metavar="NAME[:PORT]",
+                    help="extra Host header to accept besides loopback names (repeatable; "
+                         "env SOCWB_ALLOWED_HOSTS, comma-separated)")
     ap.add_argument("--version", action="version", version=f"SOC Workbench {__version__}")
     args = ap.parse_args(argv)
-    _setup_logging()
+    exposed = args.host not in LOOPBACK_BINDS
+    serve_only = args.no_open or exposed          # no window to open from a container
+    _setup_logging(console=serve_only)
 
-    httpd, session = make_server(args.port)
+    allowed = args.allow_host + os.environ.get("SOCWB_ALLOWED_HOSTS", "").split(",")
+    try:
+        httpd, session = make_server(args.port, args.host, allowed)
+    except OSError as exc:
+        print(f"socworkbench: cannot listen on {args.host}:{args.port}: {exc}", file=sys.stderr)
+        return 2
+    port = httpd.server_address[1]
     url = url_for(httpd)
-    log.info("SOC Workbench %s at %s (workdir %s)", __version__, url, session.workdir)
+    log.info("SOC Workbench %s listening on %s:%s (workdir %s)", __version__, args.host, port, session.workdir)
     if args.files:
         session.analyze_paths(args.files, ", ".join(os.path.basename(f) for f in args.files)[:80])
 
@@ -156,8 +186,23 @@ def main(argv: list[str] | None = None) -> int:
         while thread.is_alive():            # a bare join() ignores Ctrl+C on Windows
             thread.join(0.5)
 
+    def _terminate(_signum, _frame):        # `docker stop`: PID 1 gets no default SIGTERM action
+        raise KeyboardInterrupt
+
     try:
-        if args.no_open:
+        signal.signal(signal.SIGTERM, _terminate)
+    except (ValueError, OSError):
+        pass
+
+    try:
+        if exposed:
+            print(f"SOC Workbench is listening on {args.host}:{port} -- beyond this machine.\n"
+                  f"Open:  {access_url(httpd, session)}\n"
+                  "The link carries the access token; without it the page and the API answer 401.\n"
+                  "(Published under another port? Use that port in the link.)  Ctrl+C to stop.",
+                  flush=True)
+            wait()
+        elif args.no_open:
             print(f"SOC Workbench running at {url}  (Ctrl+C to stop)", flush=True)
             wait()
         elif not args.browser and _open_window(url, session):

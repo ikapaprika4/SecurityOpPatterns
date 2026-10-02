@@ -149,6 +149,21 @@ class TestParsers(unittest.TestCase):
     def test_xml_malformed_returns_none(self):
         self.assertIsNone(_xml_to_event_record("<not><valid", 0))
 
+    def test_packed_string_array_gets_the_same_keys_as_separate_data_elements(self):
+        # Classic events carry unnamed values. wevtutil writes one <Data> per
+        # value; python-evtx packs them into one <Data> as escaped
+        # <string>..</string> items. A rule must see the same keys either way.
+        event = ('<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">'
+                 '<System><EventID>7036</EventID><Channel>System</Channel></System>'
+                 '<EventData>{}</EventData></Event>')
+        separate = _xml_to_event_record(event.format(
+            "<Data></Data><Data>a &amp; b</Data><Data>running</Data>"), 0)
+        packed = _xml_to_event_record(event.format(
+            "<Data>&lt;string&gt;&lt;/string&gt;\n&lt;string&gt;a &amp;amp; b&lt;/string&gt;\n"
+            "&lt;string&gt;running&lt;/string&gt;\n</Data>"), 0)
+        self.assertEqual(separate.data, {"Data1": "a & b", "Data2": "running"})
+        self.assertEqual(packed.data, separate.data)
+
     def test_xml_element_with_only_text_is_not_falsy(self):
         # regression: `elem_a or elem_b` on ElementTree Elements is a trap
         # -- an Element with text but no children is falsy under bool(),

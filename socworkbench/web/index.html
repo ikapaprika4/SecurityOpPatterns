@@ -298,7 +298,10 @@ details.sec summary{cursor:pointer;font-family:var(--serif);font-size:17px;font-
    so nothing in an email, log or packet can inject markup, and URLs are
    only ever shown defanged, never as links. */
 const TOKEN = document.querySelector('meta[name="socwb-token"]').content;
-const KITC = {phishkit:"var(--phish)", evtxkit:"var(--evtx)", nsmkit:"var(--nsm)", trafkit:"var(--traf)"};
+/* Served beyond loopback, the page is opened through a ?t=<token> link. The
+   token is already in TOKEN: take it out of the address bar and history. */
+if (location.search) { try { history.replaceState(null, "", location.pathname); } catch(e) {} }
+const KITC ={phishkit:"var(--phish)", evtxkit:"var(--evtx)", nsmkit:"var(--nsm)", trafkit:"var(--traf)"};
 const SEVS = ["critical","high","medium","low","info"];
 const EXPORT_LABELS = {html:"Report (HTML)", json:"Case (JSON)", iocs_csv:"Indicators (CSV)", blocklist:"Blocklist (TXT)",
   misp:"MISP event (JSON)", stix:"STIX 2.1 bundle", acl_iptables:"Firewall ACL: iptables", acl_cisco_ios:"Firewall ACL: Cisco IOS",
