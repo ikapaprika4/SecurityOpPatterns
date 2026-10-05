@@ -1,0 +1,11 @@
+{
+  "Rules": [
+    {
+      "ID": "expire-uploaded-evidence",
+      "Status": "Enabled",
+      "Filter": { "Prefix": "" },
+      "Expiration": { "Days": 7 },
+      "AbortIncompleteMultipartUpload": { "DaysAfterInitiation": 1 }
+    }
+  ]
+}

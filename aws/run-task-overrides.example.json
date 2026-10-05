@@ -1,0 +1,11 @@
+{
+  "containerOverrides": [
+    {
+      "name": "evtxkit",
+      "environment": [
+        { "name": "INPUT_BUCKET", "value": "evtxkit-uploads-772325758655" },
+        { "name": "INPUT_KEY", "value": "uploads/manual-test-1/rdp_brute_force.jsonl" }
+      ]
+    }
+  ]
+}

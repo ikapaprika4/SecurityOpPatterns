@@ -1,0 +1,355 @@
+# Upload → analyse → report: runbook
+
+A page where someone uploads a Windows event log and gets an evtxkit report
+back, and the commands that put it on AWS one piece at a time.
+
+**The code is tested on this machine against stand-ins for AWS
+(`python run_tests.py`). None of the `aws` or `docker` commands below has been
+run from this repo.** They are written for Git Bash, from the repository
+root, in region `eu-north-1`. Read each one before running it.
+
+## How it works
+
+| Step | Where | What happens |
+|---|---|---|
+| 1 | page → `evtxkit-upload-api` | `POST /api/uploads` returns a new job id and a pre-signed upload for `uploads/<job id>/<file name>` |
+| 2 | browser → S3 | The file goes straight to the uploads bucket; it never passes through a function |
+| 3 | S3 → `evtxkit-start-analysis` | The new object starts one Fargate task with `INPUT_BUCKET` and `INPUT_KEY` set |
+| 4 | task (`s3_wrapper.py`) | Writes `reports/<job id>/status.json` (`running`), analyses the file, uploads `reports/<job id>/report.md`, rewrites the status (`done`, or `failed` and why) |
+| 5 | page → `evtxkit-upload-api` | `GET /api/jobs/<job id>` every few seconds until the job is done, then shows the report |
+
+The job id is in the upload's key, so a report always traces back to its
+upload. Without the two `INPUT_*` variables the image behaves like plain
+evtxkit (`rules`, `--help`, …), which is what CI and the Kubernetes job use.
+
+The task exits 0 when a report was produced, even one with critical findings,
+and 1 when the job failed. The reason is in `status.json` and in CloudWatch.
+CloudWatch always holds the full transcript; S3 only ever holds the report
+and the status.
+
+Limits, all environment variables on the task: `MAX_INPUT_BYTES` (default
+64 MB), `ANALYSIS_TIMEOUT_SECONDS` (default 900), `REPORT_FORMAT` (default
+`markdown`). Analysis needs roughly 6× the file size in memory (measured:
+18 MB → 113 MB, 74 MB → 471 MB), which is why `task-definition.json` asks for
+2048 MB.
+
+## Try it on this machine first
+
+No AWS account, no Docker:
+
+```bash
+python tools/local_upload_flow.py
+```
+
+Open the link it prints and drop `samples/evtxkit/rdp_brute_force.jsonl` on
+the page. The page, both functions, `s3_wrapper.py` and evtxkit are the real
+code; S3 is a dict in memory and the "Fargate task" is a thread. It shows that
+the pieces fit together. It cannot show that the policies, the bucket settings
+or the task definition are right: the steps below do that.
+
+## 0. Check what is live first
+
+```bash
+aws ecs list-task-definition-families --status ACTIVE --region eu-north-1
+aws ecr describe-images --repository-name evtxkit --region eu-north-1 --output table
+aws iam list-role-policies --role-name evtxkitTaskRole
+```
+
+Found there on 2026-10-05: two task definition families. `evtxkit` has one
+revision, `:4` (image `v3`, 512 MB, made by hand). `evtxkit-task` is at `:6`
+(registered by CI from this folder's `task-definition.json`, image tagged with
+a commit SHA). A third, `my-container`, is unrelated. This flow continues
+`evtxkit-task`, the family `task-definition.json` and CI use, and leaves
+`evtxkit:4` as it is. To continue `evtxkit` instead, change the name in
+`task-definition.json`, `lambda-start-analysis-policy.json` (two lines),
+`.github/workflows/ci.yml` and the commands below.
+
+## 2. Create the uploads bucket
+
+Private, and it deletes uploads after 7 days: these are other people's
+Windows logs, so they should not sit there indefinitely.
+
+```bash
+aws s3api create-bucket --bucket evtxkit-uploads-772325758655 --region eu-north-1 --create-bucket-configuration LocationConstraint=eu-north-1
+aws s3api put-public-access-block --bucket evtxkit-uploads-772325758655 --region eu-north-1 --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+aws s3api put-bucket-lifecycle-configuration --bucket evtxkit-uploads-772325758655 --region eu-north-1 --lifecycle-configuration file://aws/uploads-bucket-lifecycle.json
+```
+
+## 3. Let the task read uploads
+
+One more inline policy on the task role: `s3:GetObject` on the uploads bucket
+and nothing else. The existing `S3WriteAccess` policy stays as it is.
+
+```bash
+aws iam put-role-policy --role-name evtxkitTaskRole --policy-name S3ReadUploads --policy-document file://aws/s3-read-uploads-policy.json
+```
+
+The wrapper makes three kinds of S3 call: `HeadObject` and `GetObject` on the
+upload (both authorised by `s3:GetObject`) and `PutObject` on the reports
+bucket.
+
+## 4. Build and push the image under a new tag
+
+Commit first, so the tag identifies exactly what is in the image. Never reuse
+a tag.
+
+```bash
+TAG=$(git rev-parse --short HEAD)
+REPO=772325758655.dkr.ecr.eu-north-1.amazonaws.com/evtxkit
+aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin 772325758655.dkr.ecr.eu-north-1.amazonaws.com
+docker build --platform linux/amd64 -f Dockerfile.evtxkit -t $REPO:$TAG .
+docker run --rm $REPO:$TAG --help
+docker push $REPO:$TAG
+```
+
+The `docker run … --help` line is the same smoke test CI runs: it must print
+evtxkit's usage and exit 0 with no AWS configuration at all.
+
+`--platform linux/amd64` matters on an ARM laptop: the task definition names
+no platform, so Fargate runs x86-64, and an ARM image would not start.
+
+## 5. Register a new task definition revision
+
+Task definitions cannot be edited; this writes a copy of
+`task-definition.json` with the new image and registers it as a new revision.
+Before registering, check the two role lines: `executionRoleArn` must be
+`ecsTaskExecutionRole` and `taskRoleArn` must be `evtxkitTaskRole`.
+
+```bash
+sed -E "s|(/evtxkit):[^\"]+|\1:$TAG|" aws/task-definition.json > aws/task-definition-updated.json
+grep -E '"image"|RoleArn' aws/task-definition-updated.json
+aws ecs register-task-definition --cli-input-json file://aws/task-definition-updated.json --region eu-north-1 --query "taskDefinition.[family,revision]" --output text
+```
+
+The command stays `["rules"]`. An analysis job ignores it: with `INPUT_BUCKET`
+and `INPUT_KEY` set the wrapper runs `analyze <the upload> -f markdown`
+itself, so nothing has to remember to override the command.
+
+## 6. Prove it by hand
+
+Upload a bundled sample, run the task with the two `INPUT_*` variables, and
+look at the result. `run-task-overrides.example.json` holds the overrides, so
+there is no JSON to quote on the command line; its `INPUT_KEY` must match the
+key used in the first command.
+
+```bash
+aws s3 cp samples/evtxkit/rdp_brute_force.jsonl s3://evtxkit-uploads-772325758655/uploads/manual-test-1/rdp_brute_force.jsonl
+TASK=$(aws ecs run-task --cluster evtxkit-cluster --task-definition evtxkit-task --launch-type FARGATE --region eu-north-1 --network-configuration "awsvpcConfiguration={subnets=[subnet-03f1948ab29775079],securityGroups=[sg-0aac35e37f78a3f63],assignPublicIp=ENABLED}" --overrides file://aws/run-task-overrides.example.json --query "tasks[0].taskArn" --output text | tr -d '\r')
+echo $TASK
+aws ecs wait tasks-stopped --cluster evtxkit-cluster --tasks $TASK --region eu-north-1
+aws ecs describe-tasks --cluster evtxkit-cluster --tasks $TASK --region eu-north-1 --query "tasks[0].containers[0].[exitCode,reason]" --output text
+```
+
+If `echo $TASK` prints `None`, the task did not start: run the `run-task`
+command again without `--query` and read its `failures` list.
+
+Then the two things to check:
+
+```bash
+aws s3 cp s3://evtxkit-reports-772325758655/reports/manual-test-1/status.json -
+aws s3 cp s3://evtxkit-reports-772325758655/reports/manual-test-1/report.md - | head -20
+MSYS_NO_PATHCONV=1 aws logs tail /ecs/evtxkit --region eu-north-1 --since 15m
+```
+
+(`MSYS_NO_PATHCONV=1` stops Git Bash rewriting `/ecs/evtxkit` into a Windows
+path.)
+
+**Working** looks like this: exit code `0`; `status.json` has
+`"state": "done"`, `"report_key": "reports/manual-test-1/report.md"` and
+`"high_or_critical_findings": true`; the report's first line is
+``# evtxkit analysis: `rdp_brute_force.jsonl` `` and it lists
+`EVTX-LOGON-BRUTE-01`; CloudWatch shows the same report plus an
+`Uploaded to s3://…` line.
+
+Then repeat with a real `.evtx` exported from a Windows machine. That is the
+format a customer will actually upload, and it is read by evtxkit's own
+reader on Linux, so it is the more important test.
+
+Worth trying once as well, to see the failure path: upload a text file that
+is not a log. Expect exit code `1` and `"state": "failed"` with a reason; it
+must never come back as a clean report.
+
+Remove the test objects when done:
+
+```bash
+aws s3 rm s3://evtxkit-uploads-772325758655/uploads/manual-test-1/ --recursive
+aws s3 rm s3://evtxkit-reports-772325758655/reports/manual-test-1/ --recursive
+```
+
+## 7. Start the task automatically
+
+`aws/lambda/start_analysis/handler.py` does by itself what step 6 did by
+hand. Do this only once step 6 works: it adds nothing that step 6 has not
+proven, except the trigger.
+
+Its role may do three things (`lambda-start-analysis-policy.json`):
+
+| Statement | Allows | Why |
+|---|---|---|
+| `RunTheAnalysisTask` | `ecs:RunTask`, on the `evtxkit-task` definition, in `evtxkit-cluster` only | The one call the function makes. Both spellings of the task definition are listed because the function names the family, and ECS then checks the ARN without a revision number |
+| `PassTheTasksTwoRoles` | `iam:PassRole`, for `ecsTaskExecutionRole` and `evtxkitTaskRole` only, to ECS tasks only | ECS requires it of whoever starts a task that uses those roles |
+| `WriteItsOwnLog` | `logs:CreateLogStream`, `logs:PutLogEvents` on its own log group | Not in the brief's list; without it a failure leaves no trace. Drop the statement if you do not want it |
+
+```bash
+aws iam create-role --role-name evtxkitStartAnalysisRole --assume-role-policy-document file://aws/lambda-trust-policy.json
+aws iam put-role-policy --role-name evtxkitStartAnalysisRole --policy-name StartAnalysisTask --policy-document file://aws/lambda-start-analysis-policy.json
+MSYS_NO_PATHCONV=1 aws logs create-log-group --log-group-name /aws/lambda/evtxkit-start-analysis --region eu-north-1
+MSYS_NO_PATHCONV=1 aws logs put-retention-policy --log-group-name /aws/lambda/evtxkit-start-analysis --retention-in-days 30 --region eu-north-1
+```
+
+Package and create the function. The zip is one file; `boto3` comes with the
+Lambda runtime.
+
+```bash
+mkdir -p build
+(cd aws/lambda/start_analysis && python -m zipfile -c ../../../build/start-analysis.zip handler.py)
+aws lambda create-function --function-name evtxkit-start-analysis --runtime python3.12 --handler handler.handler --role arn:aws:iam::772325758655:role/evtxkitStartAnalysisRole --zip-file fileb://build/start-analysis.zip --timeout 30 --memory-size 128 --region eu-north-1 --environment "Variables={ECS_CLUSTER=evtxkit-cluster,TASK_DEFINITION=evtxkit-task,SUBNETS=subnet-03f1948ab29775079,SECURITY_GROUPS=sg-0aac35e37f78a3f63,UPLOADS_BUCKET=evtxkit-uploads-772325758655}"
+aws lambda put-function-event-invoke-config --function-name evtxkit-start-analysis --maximum-retry-attempts 2 --maximum-event-age-in-seconds 300 --region eu-north-1
+```
+
+If `create-function` says the role "cannot be assumed by Lambda", wait ten
+seconds and run it again: a new role takes a moment to exist everywhere.
+
+Let the bucket invoke the function, then tell the bucket to do so. The source
+ARN and account make sure only this bucket, in this account, can. The second
+command replaces the bucket's whole notification configuration, which is
+right for a bucket that has none yet.
+
+```bash
+aws lambda add-permission --function-name evtxkit-start-analysis --statement-id AllowTheUploadsBucket --action lambda:InvokeFunction --principal s3.amazonaws.com --source-arn arn:aws:s3:::evtxkit-uploads-772325758655 --source-account 772325758655 --region eu-north-1
+aws s3api put-bucket-notification-configuration --bucket evtxkit-uploads-772325758655 --notification-configuration file://aws/uploads-bucket-notification.json
+```
+
+Test it: the same upload as step 6 under a new job id, and no `run-task`.
+
+```bash
+aws s3 cp samples/evtxkit/rdp_brute_force.jsonl s3://evtxkit-uploads-772325758655/uploads/trigger-test-1/rdp_brute_force.jsonl
+MSYS_NO_PATHCONV=1 aws logs tail /aws/lambda/evtxkit-start-analysis --region eu-north-1 --since 5m
+aws s3 cp s3://evtxkit-reports-772325758655/reports/trigger-test-1/status.json -
+```
+
+**Working** looks like this: the function's log has one line starting
+`{"started": {"job_id": "trigger-test-1"`; within a minute or two
+`status.json` exists and ends up at `"state": "done"`. A line starting
+`{"failed":` carries ECS's own reason (most often a missing permission or a
+wrong name in the function's environment). Remove the test objects as in
+step 6.
+
+## 8. The page
+
+`aws/lambda/upload_api/` is the page and its API in one function with a
+function URL. Its role (`lambda-upload-api-policy.json`):
+
+| Statement | Allows | Why |
+|---|---|---|
+| `WhatAPreSignedUploadMayDo` | `s3:PutObject` on `uploads/*` in the uploads bucket | A pre-signed upload can do what its signer can, and no more. Each one is further limited to a single key, 64 MB and five minutes |
+| `ReadJobStatusAndReports` | `s3:GetObject` on `reports/*` in the reports bucket | To read `status.json` and the report, and to sign the report's download link |
+| `WriteItsOwnLog` | as in step 7 | |
+
+The function that faces the internet cannot start tasks or pass roles, and
+the one that starts tasks cannot read or write a single object.
+
+```bash
+aws iam create-role --role-name evtxkitUploadApiRole --assume-role-policy-document file://aws/lambda-trust-policy.json
+aws iam put-role-policy --role-name evtxkitUploadApiRole --policy-name SignUploadsReadReports --policy-document file://aws/lambda-upload-api-policy.json
+MSYS_NO_PATHCONV=1 aws logs create-log-group --log-group-name /aws/lambda/evtxkit-upload-api --region eu-north-1
+MSYS_NO_PATHCONV=1 aws logs put-retention-policy --log-group-name /aws/lambda/evtxkit-upload-api --retention-in-days 30 --region eu-north-1
+```
+
+The page is open to the internet, so the API behind it asks for an access
+code: without one, anyone who finds the address could run tasks on your
+account. This makes a long random one and creates the function with it.
+
+```bash
+mkdir -p build
+(cd aws/lambda/upload_api && python -m zipfile -c ../../../build/upload-api.zip handler.py web)
+CODE=$(python -c "import secrets; print(secrets.token_urlsafe(18))" | tr -d '\r')
+aws lambda create-function --function-name evtxkit-upload-api --runtime python3.12 --handler handler.handler --role arn:aws:iam::772325758655:role/evtxkitUploadApiRole --zip-file fileb://build/upload-api.zip --timeout 15 --memory-size 256 --region eu-north-1 --environment "Variables={UPLOADS_BUCKET=evtxkit-uploads-772325758655,REPORT_BUCKET=evtxkit-reports-772325758655,ACCESS_CODE=$CODE}"
+```
+
+Give it an address. A public function URL needs both permissions; with only
+the first, every request gets a 403. If the CLI does not know
+`--invoked-via-function-url`, it is older than that rule: update it.
+
+```bash
+aws lambda create-function-url-config --function-name evtxkit-upload-api --auth-type NONE --region eu-north-1
+aws lambda add-permission --function-name evtxkit-upload-api --statement-id FunctionURLAllowPublicAccess --action lambda:InvokeFunctionUrl --principal "*" --function-url-auth-type NONE --region eu-north-1
+aws lambda add-permission --function-name evtxkit-upload-api --statement-id FunctionURLInvokeAllowPublicAccess --action lambda:InvokeFunction --principal "*" --invoked-via-function-url --region eu-north-1
+```
+
+Last, let that one address post to the bucket from a browser. This fills the
+address into a copy of `uploads-bucket-cors.json` and prints the link to hand
+out, access code included.
+
+```bash
+URL=$(aws lambda get-function-url-config --function-name evtxkit-upload-api --region eu-north-1 --query FunctionUrl --output text | tr -d '\r')
+sed "s|https://PAGE-ORIGIN|${URL%/}|" aws/uploads-bucket-cors.json > build/uploads-bucket-cors.json
+grep AllowedOrigins build/uploads-bucket-cors.json
+aws s3api put-bucket-cors --bucket evtxkit-uploads-772325758655 --cors-configuration file://build/uploads-bucket-cors.json
+echo "$URL#code=$CODE"
+```
+
+Open the link and upload `samples/evtxkit/rdp_brute_force.jsonl`, then a real
+`.evtx`.
+
+**Working** looks like this: the bar fills during the upload; "Waiting for
+the analysis to start" for about a minute; then "High or critical findings"
+with the report under it, and the download button saves a `.md` file.
+
+If it does not:
+
+| What you see | Where to look |
+|---|---|
+| "The access code is missing or wrong." | The code in the link is not the function's `ACCESS_CODE` |
+| "The service is not set up yet." | One of the function's three environment variables is missing |
+| "The upload did not go through." straight away | The bucket's CORS rule: its origin must be the page's address exactly, with no `/` at the end |
+| "The upload was refused" | `evtxkitUploadApiRole` lacks `s3:PutObject` on `uploads/*`, or the link was more than five minutes old |
+| "The analysis did not start." after six minutes | The trigger: `aws logs tail /aws/lambda/evtxkit-start-analysis` |
+| A plain `Forbidden` instead of the page | The second `add-permission` command above |
+
+To change the code later, package again and run
+`aws lambda update-function-code --function-name <name> --zip-file fileb://build/<name>.zip --region eu-north-1`.
+
+## Switching it off
+
+The page stops answering as soon as its address is gone; nothing else has to
+be touched, and the manual path of step 6 keeps working.
+
+```bash
+aws lambda delete-function-url-config --function-name evtxkit-upload-api --region eu-north-1
+```
+
+To stop uploads starting tasks as well:
+
+```bash
+aws s3api put-bucket-notification-configuration --bucket evtxkit-uploads-772325758655 --notification-configuration "{}"
+```
+
+## What this first version leaves out
+
+- **Rate limiting.** A function URL has none. The access code is the only
+  gate, and everyone you give the link to shares it. For real customers, put
+  the same function behind an API Gateway HTTP API (it sends the same event
+  format, so the code does not change) or CloudFront with WAF, and give each
+  customer their own credentials.
+- **A retry queue for the trigger.** If ECS refuses to start a task three
+  times in a row, that upload is never analysed and the page says so after
+  six minutes. The reason is in the trigger's log; nothing re-drives it.
+- **Expiry for reports.** Uploads are deleted after 7 days; reports stay
+  until someone deletes them. They quote the customer's log, so decide how
+  long to keep them.
+- **Automated deployment.** CI builds and registers the task, not these two
+  functions.
+
+## Checking the policies against the code
+
+The four permission policies in this folder were written by hand from the
+calls the code makes, and `tests/test_upload_flow.py` fails if one of them
+grows a wildcard or a resource it should not have. For an independent check:
+
+```bash
+uvx iam-policy-autopilot@latest generate-policies "$(pwd)/s3_wrapper.py" "$(pwd)/aws/lambda/start_analysis/handler.py" "$(pwd)/aws/lambda/upload_api/handler.py" --region eu-north-1 --account 772325758655 --service-hints s3 ecs --pretty
+```
+
+It reads the SDK calls in the source. It cannot see that a pre-signed upload
+needs `s3:PutObject`, because signing is not a call to AWS.

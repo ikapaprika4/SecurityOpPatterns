@@ -10,3 +10,8 @@ aws
 infra
 *.md
 *.bat
+# Tests and tools for the AWS upload flow. The code they exercise (s3_wrapper.py,
+# aws/lambda) is not in the toolkit image, so its self-test must not look for them.
+tests/test_s3_wrapper.py
+tests/test_upload_flow.py
+tools/local_upload_flow.py

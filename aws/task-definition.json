@@ -3,7 +3,7 @@
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "256",
-  "memory": "512",
+  "memory": "2048",
   "executionRoleArn": "arn:aws:iam::772325758655:role/ecsTaskExecutionRole",
   "taskRoleArn": "arn:aws:iam::772325758655:role/evtxkitTaskRole",
   "containerDefinitions": [
@@ -12,6 +12,9 @@
       "image": "772325758655.dkr.ecr.eu-north-1.amazonaws.com/evtxkit:v1",
       "essential": true,
       "command": ["rules"],
+      "environment": [
+        { "name": "REPORT_BUCKET", "value": "evtxkit-reports-772325758655" }
+      ],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {

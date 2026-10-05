@@ -1,0 +1,14 @@
+{
+  "LambdaFunctionConfigurations": [
+    {
+      "Id": "start-analysis-on-upload",
+      "LambdaFunctionArn": "arn:aws:lambda:eu-north-1:772325758655:function:evtxkit-start-analysis",
+      "Events": ["s3:ObjectCreated:*"],
+      "Filter": {
+        "Key": {
+          "FilterRules": [{ "Name": "prefix", "Value": "uploads/" }]
+        }
+      }
+    }
+  ]
+}

@@ -23,6 +23,10 @@ def _load(args: argparse.Namespace):
 
 def cmd_analyze(args: argparse.Namespace) -> int:
     events, label = _load(args)
+    if not events:
+        # Nothing was read. A report saying "0 events, no findings" would read
+        # as a clean host, so this is an error (exit 2), not a result.
+        raise EventParseError(f"no events found in {label}")
     result = analyze_events(events, path=label)
     print(render(result, args.format_out))
     if args.verbose:

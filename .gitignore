@@ -5,3 +5,5 @@ build/
 dist/
 *.egg-info/
 .pytest_cache/
+# written by CI and by step 5 of aws/UPLOAD-FLOW.md
+aws/task-definition-updated.json

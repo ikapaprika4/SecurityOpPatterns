@@ -1,0 +1,23 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "WhatAPreSignedUploadMayDo",
+      "Effect": "Allow",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::evtxkit-uploads-772325758655/uploads/*"
+    },
+    {
+      "Sid": "ReadJobStatusAndReports",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::evtxkit-reports-772325758655/reports/*"
+    },
+    {
+      "Sid": "WriteItsOwnLog",
+      "Effect": "Allow",
+      "Action": ["logs:CreateLogStream", "logs:PutLogEvents"],
+      "Resource": "arn:aws:logs:eu-north-1:772325758655:log-group:/aws/lambda/evtxkit-upload-api:*"
+    }
+  ]
+}
