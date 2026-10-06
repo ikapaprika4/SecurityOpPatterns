@@ -23,7 +23,9 @@ can only ask about their own jobs.
 Environment (aws/UPLOAD-FLOW.md, step 8):
     UPLOADS_BUCKET, REPORT_BUCKET    required
     USERS                            required; JSON {"alice": "<sha256 hex of her code>", ...}
-                                     (without it the API answers 503)
+                                     A person can also be {"sha256": "<hex>", "expires": "2026-10-20"}:
+                                     the code stops working after that day (UTC).
+                                     (without USERS the API answers 503)
     MAX_UPLOAD_BYTES                 default 64 MB; keep it at or below the task's
                                      MAX_INPUT_BYTES
     UPLOAD_EXPIRES_SECONDS           how long a pre-signed upload stays valid (default 300)
@@ -41,6 +43,7 @@ which an API Gateway HTTP API also uses.
 from __future__ import annotations
 
 import base64
+import datetime
 import hashlib
 import hmac
 import json
@@ -63,7 +66,8 @@ ALLOWED_EXTENSIONS = (".evtx", ".xml", ".json", ".jsonl", ".ndjson", ".txt", ".l
 # so the "-" after it can never be part of it.
 USER_NAME = re.compile(r"[a-z][a-z0-9]{1,19}")
 FINGERPRINT = re.compile(r"[0-9a-f]{64}")
-JOB_ID = re.compile(r"([a-z][a-z0-9]{1,19})-([0-9a-f]{32})")
+DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+JOB_ID =re.compile(r"([a-z][a-z0-9]{1,19})-([0-9a-f]{32})")
 MAX_CODE_LENGTH = 200
 DEFAULT_MAX_UPLOAD_BYTES = 64 * 1024 * 1024
 DEFAULT_UPLOAD_EXPIRES_SECONDS = 300
@@ -118,8 +122,13 @@ def _int_env(env, name: str, default: int) -> int:
         return default
 
 
+def today() -> datetime.date:
+    """Today in UTC. A person's code works through the whole day it expires on."""
+    return datetime.datetime.now(datetime.timezone.utc).date()
+
+
 def load_users(env) -> dict:
-    """{name: SHA-256 fingerprint of that person's code} from the USERS setting."""
+    """{name: (SHA-256 fingerprint of that person's code, last day it works or None)} from USERS."""
     raw = (env.get("USERS") or "").strip()
     if not raw:
         raise UsersError("USERS is not set")
@@ -130,14 +139,30 @@ def load_users(env) -> dict:
             raise UsersError("USERS is not valid JSON") from exc
         if not isinstance(data, dict) or not data:
             raise UsersError("USERS must be a JSON object with at least one person")
-        for name, fingerprint in data.items():
+        users: dict = {}
+        for name, entry in data.items():
             if not USER_NAME.fullmatch(name):
                 raise UsersError(f"{name!r} is not a usable name (a-z and 0-9, starting with a letter, 2-20 characters)")
-            if not isinstance(fingerprint, str) or not FINGERPRINT.fullmatch(fingerprint):
+            expires = None
+            if isinstance(entry, dict):
+                if "sha256" not in entry or set(entry) - {"sha256", "expires"}:
+                    raise UsersError(f"the entry for {name!r} may only have sha256 and expires")
+                fingerprint_, last_day = entry["sha256"], entry.get("expires")
+                if last_day is not None:
+                    try:
+                        if not isinstance(last_day, str) or not DATE.fullmatch(last_day):
+                            raise ValueError
+                        expires = datetime.date.fromisoformat(last_day)
+                    except ValueError:
+                        raise UsersError(f"the expiry of {name!r} is not a date like 2026-10-20") from None
+            else:
+                fingerprint_ = entry
+            if not isinstance(fingerprint_, str) or not FINGERPRINT.fullmatch(fingerprint_):
                 raise UsersError(f"the entry for {name!r} is not a lowercase hex SHA-256")
-        if len(set(data.values())) != len(data):
+            users[name] = (fingerprint_, expires)
+        if len({fp for fp, _ in users.values()}) != len(users):
             raise UsersError("two people share a code")
-        _users[raw] = dict(data)
+        _users[raw] = users
     return _users[raw]
 
 
@@ -145,17 +170,23 @@ def fingerprint(code: str) -> str:
     return hashlib.sha256(code.encode("utf-8")).hexdigest()
 
 
-def who(headers: dict, users: dict) -> str | None:
-    """The person whose code the request carries, or None."""
+def identify(headers: dict, users: dict) -> tuple[str | None, bool]:
+    """(the person whose code the request carries or None, whether that code has expired)."""
     given = str(headers.get("x-access-code") or "")
     if not given or len(given) > MAX_CODE_LENGTH:
-        return None
+        return None, False
     digest = fingerprint(given)
     found = None
-    for name, stored in users.items():   # no early exit: the time says nothing about whose fingerprint was close
+    for name, (stored, expires) in users.items():   # no early exit: the time says nothing about whose fingerprint was close
         if hmac.compare_digest(digest, stored):
-            found = name
-    return found
+            found = (name, expires is not None and today() > expires)
+    return found if found else (None, False)
+
+
+def who(headers: dict, users: dict) -> str | None:
+    """The person whose code the request carries, or None (also None for an expired code)."""
+    name, expired = identify(headers, users)
+    return None if expired else name
 
 
 def sample_catalog() -> dict:
@@ -351,7 +382,12 @@ def handle(event: dict, env, s3) -> dict:
     path = event.get("rawPath") or http.get("path") or "/"
 
     if path in STATIC:
-        return _static(path, env, s3) if method == "GET" else _error(405, "Method not allowed.")
+        if method not in ("GET", "HEAD"):
+            return _error(405, "Method not allowed.")
+        response = _static(path, env, s3)
+        if method == "HEAD":             # what link previews and uptime checks send: the headers, no body
+            response["body"] = ""
+        return response
     if not path.startswith("/api/"):
         return _error(404, "Not found.")
 
@@ -364,7 +400,10 @@ def handle(event: dict, env, s3) -> dict:
         print(f"upload_api: {exc}; refusing the call")
         return _error(503, "The service is not set up yet.")
     headers = {str(name).lower(): value for name, value in (event.get("headers") or {}).items()}
-    user = who(headers, users)
+    user, expired = identify(headers, users)
+    if expired:                          # only someone who holds a real code learns that it ran out
+        print(json.dumps({"auth_expired": {"user": user, "ip": http.get("sourceIp")}}))
+        return _error(401, "This access code has expired. Ask for a new one.")
     if user is None:
         print(json.dumps({"auth_failed": {"ip": http.get("sourceIp")}}))
         return _error(401, "The access code is missing or wrong.")

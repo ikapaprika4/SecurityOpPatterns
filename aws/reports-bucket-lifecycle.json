@@ -1,9 +1,9 @@
 {
   "Rules": [
     {
-      "ID": "expire-uploaded-evidence",
+      "ID": "expire-reports",
       "Status": "Enabled",
-      "Filter": { "Prefix": "" },
+      "Filter": { "Prefix": "reports/" },
       "Expiration": { "Days": 1 },
       "AbortIncompleteMultipartUpload": { "DaysAfterInitiation": 1 }
     }

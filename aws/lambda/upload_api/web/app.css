@@ -86,4 +86,7 @@ h2.findings{background:var(--crit-bg);color:var(--crit)}
 pre{margin:0;padding:18px;border-radius:12px;background:var(--code);color:var(--code-ink);font:13px/1.55 var(--mono);
   white-space:pre-wrap;overflow-wrap:anywhere;max-height:70vh;overflow:auto;box-shadow:var(--shadow)}
 
+.fineprint{margin-top:44px;padding-top:16px;border-top:1px solid var(--rule);color:var(--faint);font-size:12.5px}
+.fineprint p{margin:0;max-width:62ch}
+
 @media (max-width:520px){main{padding:32px 16px 56px} h1{font-size:24px} .actions .btn{flex:1}}

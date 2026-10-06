@@ -15,7 +15,9 @@ from __future__ import annotations
 
 import base64
 import contextlib
+import datetime
 import hashlib
+import html as html_module
 import http.client
 import importlib.util
 import io
@@ -344,6 +346,53 @@ class TestUploadApi(unittest.TestCase):
         for secret in ("a-wrong-code-12345", CODE, BOB_CODE, sha256(CODE)):
             self.assertNotIn(secret, text)
 
+    # ---- codes that expire --------------------------------------------------
+    def test_a_code_with_an_expiry_works_through_its_last_day_and_then_stops(self):
+        users = json.dumps({"alice": {"sha256": sha256(CODE), "expires": "2026-10-20"}, "bob": sha256(BOB_CODE)})
+        env = dict(API_ENV, USERS=users)
+        lines, real = [], upload_api.today
+        upload_api.print = lambda *args, **kwargs: lines.append(" ".join(map(str, args)))
+        try:
+            for day, still_works in (("2026-10-06", True), ("2026-10-20", True), ("2026-10-21", False), ("2027-01-01", False)):
+                upload_api.today = lambda day=day: datetime.date.fromisoformat(day)
+                status, body, _ = call("POST", "/api/uploads", {"filename": "a.evtx"}, env=env)
+                if still_works:
+                    self.assertEqual(status, 201, day)
+                else:
+                    self.assertEqual((status, body), (401, {"error": "This access code has expired. Ask for a new one."}), day)
+                self.assertEqual(call("POST", "/api/uploads", {"filename": "a.evtx"}, code=BOB_CODE, env=env)[0], 201, day)
+                self.assertEqual(call("GET", "/api/samples", env=env)[0], 200 if still_works else 401, day)
+            # A wrong code still gets the plain answer: only a real code learns that it ran out.
+            self.assertEqual(call("POST", "/api/uploads", {"filename": "a.evtx"}, code="wrong", env=env)[:2],
+                             (401, {"error": "The access code is missing or wrong."}))
+        finally:
+            upload_api.today = real
+            upload_api.print = lambda *args, **kwargs: None
+        text = "\n".join(lines)
+        self.assertIn('"auth_expired": {"user": "alice"', text)
+        self.assertNotIn(CODE, text)
+
+    def test_the_expiry_in_the_setting_must_be_a_real_date(self):
+        fp = sha256(CODE)
+        wrong = [{"sha256": fp, "expires": "20-10-2026"}, {"sha256": fp, "expires": "2026-13-40"}, {"sha256": fp, "expires": 20261020},
+                 {"sha256": fp, "expires": "20261020"}, {"sha256": fp, "expires": "2026-10-20T10:00"}, {"sha256": fp, "extra": 1},
+                 {"expires": "2026-10-20"}, {"sha256": "short", "expires": "2026-10-20"}]
+        for entry in wrong:
+            env = dict(API_ENV, USERS=json.dumps({"alice": entry}))
+            self.assertEqual(call("POST", "/api/uploads", {"filename": "a.evtx"}, env=env)[0], 503, entry)
+        for entry in ({"sha256": fp, "expires": None}, {"sha256": fp}, fp):              # no expiry
+            env = dict(API_ENV, USERS=json.dumps({"alice": entry}))
+            self.assertEqual(call("POST", "/api/uploads", {"filename": "a.evtx"}, env=env)[0], 201, entry)
+
+    def test_the_page_answers_head_with_its_headers_and_no_body(self):
+        for path in ("/", "/app.js", "/app.css"):
+            status, body, response = call("HEAD", path, code=None)
+            self.assertEqual((status, body), (200, ""), path)
+            self.assertEqual(response["headers"]["X-Content-Type-Options"], "nosniff")
+        self.assertIn("Content-Security-Policy", call("HEAD", "/", code=None)[2]["headers"])
+        self.assertEqual(call("HEAD", "/api/samples")[0], 405)
+        self.assertEqual(call("DELETE", "/", code=None)[0], 405)
+
     # ---- signing an upload --------------------------------------------------
     def test_an_upload_is_signed_for_one_key_one_size_range_and_a_few_minutes(self):
         s3 = local.LocalS3()
@@ -527,6 +576,18 @@ class TestPage(unittest.TestCase):
         self.assertEqual(accept, upload_api.ALLOWED_EXTENSIONS)
         self.assertEqual(in_script, upload_api.ALLOWED_EXTENSIONS)
 
+    def test_the_page_says_how_long_files_are_kept_and_what_a_clean_report_means(self):
+        text = re.sub(r"\s+", " ", html_module.unescape(re.sub(r"<[^>]+>", " ", self.html)))   # as a browser shows it
+        days = {json.loads(read("aws", name))["Rules"][0]["Expiration"]["Days"]
+                for name in ("uploads-bucket-lifecycle.json", "reports-bucket-lifecycle.json")}
+        self.assertEqual(days, {1})                               # S3's smallest: gone within two days
+        self.assertIn("we don’t keep your files", text)
+        self.assertIn("deleted as soon as it has been analysed", text)   # what the task really does
+        self.assertIn("removed automatically within two days", text)     # what the lifecycle rule really does
+        self.assertNotIn("7 days", text)
+        self.assertIn("does not prove that a system is clean", text)
+        self.assertIn("only logs you are allowed to share", text)
+
     def test_the_page_waits_longer_than_the_task_may_run(self):
         factors = re.search(r"const TOTAL_TIMEOUT_MS = ([\d *]+);", self.js).group(1).split("*")
         self.assertGreater(math.prod(int(f) for f in factors) / 1000, s3_wrapper.DEFAULT_TIMEOUT_SECONDS + 120)
@@ -574,10 +635,11 @@ class TestAwsFiles(unittest.TestCase):
                     self.assertRegex(resource, r"^arn:aws:[a-z0-9]+:[a-z0-9-]*:\d*:.+", name)
                     self.assertNotRegex(resource, r"^arn:aws:[a-z0-9]+:[a-z0-9-]*:\d*:\*$", name)
 
-    def test_the_task_reads_uploads_and_writes_reports_and_nothing_else(self):
+    def test_the_task_reads_and_deletes_uploads_and_writes_reports_and_nothing_else(self):
         read_policy, write_policy = policy_file("s3-read-uploads-policy.json"), policy_file("s3-write-policy.json")
         self.assertEqual({a: s["Resource"] for a, s in read_policy.items()},
-                         {"s3:GetObject": f"arn:aws:s3:::evtxkit-uploads-{ACCOUNT}/*"})
+                         {"s3:GetObject": f"arn:aws:s3:::evtxkit-uploads-{ACCOUNT}/*",
+                          "s3:DeleteObject": f"arn:aws:s3:::evtxkit-uploads-{ACCOUNT}/uploads/*"})   # delete: only what was uploaded
         self.assertEqual({a: s["Resource"] for a, s in write_policy.items()},
                          {"s3:PutObject": f"arn:aws:s3:::evtxkit-reports-{ACCOUNT}/*"})
 
@@ -606,6 +668,32 @@ class TestAwsFiles(unittest.TestCase):
         self.assertEqual(granted["logs:PutLogEvents"]["Resource"],
                          f"arn:aws:logs:{REGION}:{ACCOUNT}:log-group:/aws/lambda/evtxkit-upload-api:*")
 
+    def test_the_ci_key_can_push_register_and_run_the_test_task_and_nothing_else(self):
+        granted = policy_file("ci-deploy-policy.json")
+        self.assertEqual(set(granted), {
+            "ecr:GetAuthorizationToken", "ecr:BatchCheckLayerAvailability", "ecr:InitiateLayerUpload",
+            "ecr:UploadLayerPart", "ecr:CompleteLayerUpload", "ecr:PutImage",
+            "ecs:RegisterTaskDefinition", "ecs:RunTask", "iam:PassRole"})
+        # Only the two calls AWS cannot scope to a resource may name "*".
+        self.assertEqual({a for a, s in granted.items() if s["Resource"] == "*"},
+                         {"ecr:GetAuthorizationToken", "ecs:RegisterTaskDefinition"})
+        # The takeover paths a deploy key must never have: writing IAM, reading data, touching the functions.
+        for action in granted:
+            self.assertFalse(action.startswith(("iam:Create", "iam:Put", "iam:Attach", "iam:Update", "s3:", "lambda:", "sts:")), action)
+        task = json.loads(read("aws", "task-definition.json"))
+        self.assertEqual(sorted(granted["ecs:RunTask"]["Resource"]),
+                         [f"arn:aws:ecs:{REGION}:{ACCOUNT}:task-definition/{task['family']}",
+                          f"arn:aws:ecs:{REGION}:{ACCOUNT}:task-definition/{task['family']}:*"])
+        self.assertEqual(granted["ecs:RunTask"]["Condition"],
+                         {"ArnEquals": {"ecs:cluster": f"arn:aws:ecs:{REGION}:{ACCOUNT}:cluster/evtxkit-cluster"}})
+        self.assertEqual(sorted(granted["iam:PassRole"]["Resource"]), sorted([task["executionRoleArn"], task["taskRoleArn"]]))
+        self.assertEqual(granted["iam:PassRole"]["Condition"], {"StringEquals": {"iam:PassedToService": "ecs-tasks.amazonaws.com"}})
+        self.assertEqual(granted["ecr:PutImage"]["Resource"], f"arn:aws:ecr:{REGION}:{ACCOUNT}:repository/evtxkit")
+        # And it is what the workflow really uses.
+        workflow = read(".github", "workflows", "ci.yml")
+        for used in (f"--task-definition {task['family']}", "evtxkit-cluster", "/evtxkit:", "register-task-definition", "ecr-login"):
+            self.assertIn(used, workflow)
+
     def test_both_functions_are_assumed_by_lambda_only(self):
         (statement,) = json.loads(read("aws", "lambda-trust-policy.json"))["Statement"]
         self.assertEqual((statement["Principal"], statement["Action"]),
@@ -616,6 +704,14 @@ class TestAwsFiles(unittest.TestCase):
         self.assertEqual(rule["LambdaFunctionArn"], f"arn:aws:lambda:{REGION}:{ACCOUNT}:function:evtxkit-start-analysis")
         self.assertEqual(rule["Events"], ["s3:ObjectCreated:*"])
         self.assertEqual(rule["Filter"]["Key"]["FilterRules"], [{"Name": "prefix", "Value": "uploads/"}])
+
+    def test_uploads_and_reports_both_expire_after_one_day(self):
+        # The task deletes an upload when it has analysed it; the rule is the backstop for a task that dies first.
+        # Reports quote the customer's log, so they must not be kept either. One day is S3's smallest, and means gone within two.
+        for name, prefix in (("uploads-bucket-lifecycle.json", ""), ("reports-bucket-lifecycle.json", "reports/")):
+            (rule,) = json.loads(read("aws", name))["Rules"]
+            self.assertEqual((rule["Status"], rule["Expiration"], rule["Filter"]), ("Enabled", {"Days": 1}, {"Prefix": prefix}), name)
+            self.assertEqual(rule["AbortIncompleteMultipartUpload"], {"DaysAfterInitiation": 1}, name)
 
     def test_the_bucket_lets_one_origin_post_and_nothing_else(self):
         (rule,) = json.loads(read("aws", "uploads-bucket-cors.json"))["CORSRules"]
@@ -726,7 +822,8 @@ class TestLocalFlow(unittest.TestCase):
         job_id, key, status, _ = self.upload("RDP brute force (1).jsonl", data)
         self.assertEqual(status, 204)
         self.assertEqual(key, f"uploads/{job_id}/RDP_brute_force_1.jsonl")
-        self.assertEqual(self.flow.s3.objects[(local.UPLOADS_BUCKET, key)], data)
+        self.assertEqual(self.flow.s3.uploaded[(local.UPLOADS_BUCKET, key)], data)      # it arrived byte for byte...
+        self.assertNotIn((local.UPLOADS_BUCKET, key), self.flow.s3.objects)             # ...and is gone once analysed
 
         # The upload itself started exactly one task, told only where the file is.
         (request,) = self.flow.ecs.calls
@@ -743,8 +840,12 @@ class TestLocalFlow(unittest.TestCase):
         self.assertEqual((status, downloaded.decode("utf-8")), (200, job["report"]))
         self.assertEqual(headers["content-disposition"], f'attachment; filename="evtxkit-report-{job_id.split("-", 1)[1][:8]}.md"')
 
-        # The complete transcript is in the task's log; S3 holds only the report and the status.
-        self.assertIn(f"Uploaded to s3://{local.REPORT_BUCKET}/reports/{job_id}/report.md", self.flow.ecs.transcripts[-1])
+        # The task's log has the facts and no data; S3 holds only the report and the status.
+        transcript = self.flow.ecs.transcripts[-1]
+        self.assertIn(f"Uploaded to s3://{local.REPORT_BUCKET}/reports/{job_id}/report.md", transcript)
+        self.assertIn("analysed: exit=1 events=21 findings=2 worst=critical input_deleted=True", transcript)
+        self.assertNotIn("EVTX-LOGON-BRUTE", transcript)
+        self.assertNotIn("# evtxkit analysis", transcript)
         self.assertEqual(sorted(k for b, k in self.flow.s3.objects if b == local.REPORT_BUCKET and job_id in k),
                          [f"reports/{job_id}/report.md", f"reports/{job_id}/status.json"])
         self.assertTrue(any("upload_signed" in line for line in self.logs))
@@ -753,7 +854,8 @@ class TestLocalFlow(unittest.TestCase):
         data = b"\r\n--not-the-boundary\r\n\x00\xff\xfe MZ not an event log \r\n" * 40
         job_id, key, status, _ = self.upload("holiday photos.evtx", data)
         self.assertEqual(status, 204)
-        self.assertEqual(self.flow.s3.objects[(local.UPLOADS_BUCKET, key)], data)
+        self.assertEqual(self.flow.s3.uploaded[(local.UPLOADS_BUCKET, key)], data)
+        self.assertNotIn((local.UPLOADS_BUCKET, key), self.flow.s3.objects)             # a failed job deletes it too
         status, job = self.api("GET", f"/api/jobs/{job_id}")
         self.assertEqual((status, job["state"]), (200, "failed"))
         self.assertTrue(job["error"].startswith("The file could not be analysed as a Windows event log"), job["error"])
@@ -1043,6 +1145,49 @@ class TestAccessCodes(unittest.TestCase):
         self.assertEqual(set(variables), {"UPLOADS_BUCKET", "REPORT_BUCKET", "USERS"})   # no ACCESS_CODE
         self.assertEqual(json.loads(variables["USERS"]), printed_setting(out))
         self.assertNotIn(printed_codes(out)["alice"], json.dumps(environment))
+
+    def test_a_code_can_be_given_a_last_day_and_the_function_accepts_it(self):
+        code, out, _err = run_codes("reviewer", "--expire", "reviewer=2099-01-01")
+        self.assertEqual(code, 0)
+        setting = printed_setting(out)
+        secret = printed_codes(out)["reviewer"]
+        self.assertEqual(setting, {"reviewer": {"sha256": sha256(secret), "expires": "2099-01-01"}})
+        self.assertIn("reviewer             last day 2099-01-01", out)
+        users = upload_api.load_users({"USERS": json.dumps(setting)})
+        self.assertEqual(upload_api.who({"x-access-code": secret}, users), "reviewer")
+
+    def test_the_last_day_of_someone_who_has_a_code_can_be_moved_or_removed_without_a_new_code(self):
+        first = printed_setting(run_codes("alice", "bob")[1])
+        code, out, _err = run_codes("--keep", json.dumps(first), "--expire", "alice=2099-01-01", "--expire", "bob=2099-02-02")
+        moved = printed_setting(out)
+        self.assertEqual((code, printed_codes(out)), (0, {}))                          # nobody got a new code
+        self.assertEqual(moved, {"alice": {"sha256": first["alice"], "expires": "2099-01-01"},
+                                 "bob": {"sha256": first["bob"], "expires": "2099-02-02"}})
+        # The tool reads its own output back, keeps the other person's date, and can clear one.
+        code, out, _err = run_codes("--keep", json.dumps(moved), "--expire", "alice=none")
+        self.assertEqual(printed_setting(out), {"alice": first["alice"], "bob": moved["bob"]})
+        code, out, _err = run_codes("carol", "--keep", json.dumps(moved))
+        self.assertEqual({k: v for k, v in printed_setting(out).items() if k != "carol"}, moved)
+
+    def test_a_last_day_that_makes_no_sense_is_refused(self):
+        keep = json.dumps(printed_setting(run_codes("alice")[1]))
+        real = access_codes.today
+        access_codes.today = lambda: datetime.date(2026, 10, 6)
+        try:
+            self.assertEqual(run_codes("--keep", keep, "--expire", "alice=2026-10-06")[0], 0)        # today still counts
+            for expire in ("alice=2026-10-05",                                                      # already past: that is --remove
+                           "nobody=2099-01-01", "alice=20-10-2026", "alice=2026-13-01", "alice=", "alice", "=2099-01-01"):
+                code, out, err = run_codes("--keep", keep, "--expire", expire)
+                self.assertEqual((code, printed_codes(out)), (2, {}), expire)
+                self.assertTrue(err.startswith("access_codes:"), expire)
+            code, _out, err = run_codes("--keep", keep, "--expire", "alice=2099-01-01", "--expire", "alice=2099-02-02")
+            self.assertEqual(code, 2)
+            self.assertIn("twice", err)
+            bad_keep = json.dumps({"alice": {"sha256": "0" * 64, "expires": "tomorrow"}})
+            self.assertEqual(run_codes("bob", "--keep", bad_keep)[0], 2)
+            self.assertEqual(run_codes("bob", "--keep", json.dumps({"alice": {"sha256": "0" * 64, "extra": 1}}))[0], 2)
+        finally:
+            access_codes.today = real
 
 
 if __name__ == "__main__":

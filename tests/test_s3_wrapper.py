@@ -13,6 +13,7 @@ import contextlib
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import unittest
@@ -31,11 +32,16 @@ def sample(name: str) -> bytes:
 
 
 class FakeS3:
-    """The three calls the wrapper makes, over a dict."""
+    """The four calls the wrapper makes, over a dict."""
 
     def __init__(self, objects: dict | None = None):
         self.objects = dict(objects or {})
         self.downloads = 0
+        self.deleted: list = []
+
+    def delete_object(self, Bucket, Key):
+        self.objects.pop((Bucket, Key), None)               # like S3: deleting what is not there is not an error
+        self.deleted.append((Bucket, Key))
 
     def head_object(self, Bucket, Key):
         if (Bucket, Key) not in self.objects:
@@ -79,13 +85,81 @@ class TestAnalysisJob(unittest.TestCase):
         self.assertIn("EVTX-LOGON-BRUTE-01", report)
         self.assertIn("`Security_export_1.jsonl`", report)      # the upload's name, not a temp path
         self.assertNotIn("evtxkit-job-", report)
-        self.assertIn("EVTX-LOGON-BRUTE-01", out)               # the container log keeps the transcript
         st = s3.status("20261005-7f3a9c")
         self.assertEqual((st["state"], st["report_key"], st["error"]),
                          ("done", "reports/20261005-7f3a9c/report.md", None))
         self.assertEqual(st["input"], {"bucket": UPLOADS, "key": key, "bytes": len(sample("rdp_brute_force.jsonl"))})
         self.assertTrue(st["high_or_critical_findings"])
         self.assertTrue(st["started"] and st["finished"])
+        # The file is gone as soon as it has been analysed, and the log has the facts, not the data.
+        self.assertNotIn((UPLOADS, key), s3.objects)
+        self.assertTrue(st["input_deleted"])
+        self.assertIn("job 20261005-7f3a9c analysed: exit=1 events=21 findings=2 worst=critical input_deleted=True", out)
+
+    def test_the_log_holds_counts_and_timings_never_the_customers_data(self):
+        text = sample("rdp_brute_force.jsonl").decode("utf-8")
+        address = re.search(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", text).group(0)
+        key = "uploads/job-log/rdp_brute_force.jsonl"
+        s3 = FakeS3({(UPLOADS, key): sample("rdp_brute_force.jsonl")})
+        _code, out, err = run(env=job_env(key), s3=s3)
+        self.assertIn(address, s3.text("reports/job-log/report.md"))     # the report does quote the log...
+        for logged in (out, err):                                        # ...and the log must not
+            self.assertNotIn(address, logged)
+            self.assertNotIn("# evtxkit analysis", logged)
+            self.assertNotIn("EVTX-LOGON-BRUTE", logged)
+        # A file that cannot be analysed: its content is not echoed either.
+        bad = b'{"marker": "SECRET-MARKER-12345", "note": "not an event"}\n' * 5
+        s3 = FakeS3({(UPLOADS, "uploads/job-bad2/x.jsonl"): bad})
+        _code, out, err = run(env=job_env("uploads/job-bad2/x.jsonl"), s3=s3)
+        self.assertEqual(s3.status("job-bad2")["state"], "failed")
+        self.assertNotIn("SECRET-MARKER-12345", out + err + json.dumps(s3.status("job-bad2")))
+
+    def test_the_upload_is_deleted_whatever_happens_to_the_job(self):
+        class ReportsRefused(FakeS3):
+            def put_object(self, Bucket, Key, Body, ContentType=None):
+                if Key.endswith("report.md"):
+                    raise RuntimeError("AccessDenied")
+                super().put_object(Bucket, Key, Body, ContentType)
+
+        real = s3_wrapper.run_evtxkit
+
+        def too_slow(args, cwd, timeout=None):
+            raise subprocess.TimeoutExpired(cmd="evtxkit", timeout=timeout)
+
+        cases = {                                    # name: (storage, content, extra environment, expected state)
+            "worked": (FakeS3, sample("clean_baseline.jsonl"), {}, "done"),
+            "not a log": (FakeS3, b"this is not an event log\n" * 20, {}, "failed"),
+            "too large": (FakeS3, sample("rdp_brute_force.jsonl"), {"MAX_INPUT_BYTES": "100"}, "failed"),
+            "empty": (FakeS3, b"", {}, "failed"),
+            "report refused": (ReportsRefused, sample("clean_baseline.jsonl"), {}, "failed"),
+        }
+        for name, (storage, content, extra, state) in cases.items():
+            key = "uploads/job-gone/x.jsonl"
+            s3 = storage({(UPLOADS, key): content})
+            run(env=job_env(key, **extra), s3=s3)
+            self.assertEqual(s3.status("job-gone")["state"], state, name)
+            self.assertNotIn((UPLOADS, key), s3.objects, name)
+            self.assertTrue(s3.status("job-gone")["input_deleted"], name)
+        s3_wrapper.run_evtxkit = too_slow            # the analysis runs out of time
+        try:
+            s3 = FakeS3({(UPLOADS, key): sample("clean_baseline.jsonl")})
+            run(env=job_env(key), s3=s3)
+        finally:
+            s3_wrapper.run_evtxkit = real
+        self.assertEqual((s3.status("job-gone")["state"], (UPLOADS, key) in s3.objects), ("failed", False))
+
+    def test_a_deletion_that_fails_does_not_fail_the_job(self):
+        class CannotDelete(FakeS3):
+            def delete_object(self, Bucket, Key):
+                raise PermissionError("AccessDenied: s3:DeleteObject")
+
+        key = "uploads/job-keep/clean_baseline.jsonl"
+        s3 = CannotDelete({(UPLOADS, key): sample("clean_baseline.jsonl")})
+        code, _out, err = run(env=job_env(key), s3=s3)
+        st = s3.status("job-keep")
+        self.assertEqual((code, st["state"], st["input_deleted"]), (0, "done", False))
+        self.assertIn("could not delete the upload: PermissionError", err)
+        self.assertIn((UPLOADS, key), s3.objects)            # left for the bucket's lifecycle rule
 
     def test_clean_log_is_done_without_findings(self):
         key = "uploads/job-clean/clean_baseline.jsonl"

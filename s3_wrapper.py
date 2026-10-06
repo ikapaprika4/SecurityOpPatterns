@@ -19,8 +19,13 @@ The environment decides which of two things it does:
       uploaded and nothing fails, so the same image still runs in CI, in
       Kubernetes and on a laptop.
 
-The complete transcript (stdout and stderr) always goes to the container log
-(CloudWatch on Fargate); S3 only ever receives the clean report.
+An analysis job does not keep the customer's data. The uploaded file is deleted
+as soon as the analysis has ended, whether it worked or not (status.json says
+whether the deletion succeeded; the bucket's lifecycle rule is the backstop for
+a task that dies first), and the container log, CloudWatch on Fargate, receives
+only counts and timings: never the report, which quotes the log, and never the
+analyser's own error text. In pass-through mode the transcript is logged as
+before, since there is no customer data in it.
 
 Environment:
     INPUT_BUCKET, INPUT_KEY     the uploaded evidence (selects the analysis job)
@@ -32,8 +37,9 @@ Environment:
                                 task's memory with it)
     ANALYSIS_TIMEOUT_SECONDS    give up after this long (default 900)
 
-Needs only s3:GetObject on the uploads bucket and s3:PutObject on the reports
-bucket (aws/s3-read-uploads-policy.json, aws/s3-write-policy.json).
+Needs only s3:GetObject and s3:DeleteObject on the uploads bucket and
+s3:PutObject on the reports bucket (aws/s3-read-uploads-policy.json,
+aws/s3-write-policy.json).
 """
 
 from __future__ import annotations
@@ -131,6 +137,29 @@ class JobError(Exception):
     """The job cannot produce a report; the message is safe to show the uploader."""
 
 
+# evtxkit's own summary line, the one place counts are read from.
+_SUMMARY = re.compile(r"\*\*Events:\*\*\s*(\d+)\s+\*\*Findings:\*\*\s*(\d+)\s+\*\*Worst severity:\*\*\s*(\w+)")
+
+
+def _counts(report: str) -> str:
+    """'events=21 findings=2 worst=critical' from a markdown report, or '' for any other format."""
+    match = _SUMMARY.search(report[:2000])
+    return f"events={match.group(1)} findings={match.group(2)} worst={match.group(3)}" if match else ""
+
+
+def _delete_input(s3, bucket: str, key: str, status: dict) -> None:
+    """Delete the upload: the analysis is over, and nobody needs the file any more.
+
+    Best effort. If it fails the job is not failed, the log says so and status.json
+    records it; the uploads bucket's lifecycle rule removes the file within two days."""
+    try:
+        s3.delete_object(Bucket=bucket, Key=key)
+        status["input_deleted"] = True
+    except Exception as exc:
+        status["input_deleted"] = False
+        print(f"s3_wrapper: could not delete the upload: {type(exc).__name__}: {exc}", file=sys.stderr)
+
+
 def analysis_job(env: dict, s3=None) -> int:
     in_bucket, in_key = env["INPUT_BUCKET"], env["INPUT_KEY"]
     out_bucket = env.get("REPORT_BUCKET")
@@ -167,12 +196,16 @@ def analysis_job(env: dict, s3=None) -> int:
             traceback.print_exc()        # the log gets the details, the uploader a plain answer
         status.update(state="failed", finished=_now(),
                       error=str(exc) if expected else "The analysis could not be completed.")
+        _delete_input(s3, in_bucket, in_key, status)
         put_status()
         print(f"s3_wrapper: job {job_id} failed: {exc}", file=sys.stderr)
         return EXIT_FAILED
     status.update(state="done", report_key=report_key, finished=_now(), analysis_exit_code=code,
                   high_or_critical_findings=code == 1)
+    _delete_input(s3, in_bucket, in_key, status)
     put_status()
+    facts = [f"exit={code}", _counts(report), f"input_deleted={status['input_deleted']}"]
+    print(f"s3_wrapper: job {job_id} analysed: " + " ".join(f for f in facts if f))
     print(f"Uploaded to s3://{out_bucket}/{report_key}")
     return EXIT_OK                        # findings are a result, not a failure of the job
 
@@ -204,8 +237,9 @@ def _analyse(s3, bucket: str, key: str, fmt: str, status: dict, env: dict) -> tu
             result = run_evtxkit(["analyze", name, "-f", fmt], cwd=work, timeout=timeout)
         except subprocess.TimeoutExpired as exc:
             raise JobError(f"The analysis did not finish within {timeout} seconds.") from exc
-    sys.stdout.write(result.stdout)
-    sys.stderr.write(result.stderr)
+    # Neither the report (result.stdout) nor evtxkit's own messages (result.stderr) go to
+    # the log: they quote the customer's data. The report goes to S3, and a failure's
+    # reason, cut to 300 characters, to status.json.
     if result.returncode not in (0, 1):   # 0 = nothing high/critical, 1 = high/critical findings
         reason = next((ln for ln in result.stderr.splitlines() if ln.startswith("evtxkit:")), "")
         reason = reason[len("evtxkit:"):].strip()

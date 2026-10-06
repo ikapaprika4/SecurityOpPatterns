@@ -82,6 +82,7 @@ class LocalS3:
 
     def __init__(self, base_url: str = S3_PATH, missing_status: int = 404):
         self.objects: dict = {}             # (bucket, key) -> bytes
+        self.uploaded: dict = {}            # what browsers posted, kept even after the task deletes it (for the tests)
         self.base_url = base_url
         self.missing_status = missing_status    # S3 says 403 to a caller that may not list the bucket
         self.on_created = None              # called with an S3 event, as a bucket notification would be
@@ -94,6 +95,10 @@ class LocalS3:
     def put_object(self, Bucket, Key, Body, ContentType=None):
         with self._lock:
             self.objects[(Bucket, Key)] = bytes(Body)
+
+    def delete_object(self, Bucket, Key):
+        with self._lock:
+            self.objects.pop((Bucket, Key), None)       # like S3: deleting what is not there is not an error
 
     def _data(self, bucket: str, key: str, code: str) -> bytes:
         with self._lock:
@@ -149,6 +154,7 @@ class LocalS3:
                 if len(data) > condition[2]:
                     raise S3Error("EntityTooLarge", 400, "Your proposed upload exceeds the maximum allowed size")
         self.put_object(bucket, post["key"], data)
+        self.uploaded[(bucket, post["key"])] = data
         self._notify(bucket, post["key"], len(data))
         return post["key"]
 

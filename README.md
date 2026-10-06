@@ -126,7 +126,9 @@ any code.
 browser --> upload page (Lambda function URL, access code per person)
         --> S3 uploads bucket (pre-signed POST: one key, 64 MB, 5 minutes)
         --> S3 event --> Lambda --> ECS Fargate task (s3_wrapper.py + evtxkit)
-        --> S3 reports bucket (report.md + status.json) --> the page polls and shows it
+            (the upload is deleted as soon as it has been analysed)
+        --> S3 reports bucket (report.md + status.json, removed within two days)
+        --> the page polls and shows it
 ```
 
 - The page also offers the bundled sample logs, each with the result it should

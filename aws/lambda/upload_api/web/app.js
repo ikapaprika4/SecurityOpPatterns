@@ -128,8 +128,7 @@ async function loadSamples() {
     showSamples(data.samples || []);
   } catch (err) {
     samplesFor = "";
-    els.sampleNote.textContent = err.status === 401
-      ? "That access code was not accepted, so no samples are shown." : err.message;
+    els.sampleNote.textContent = err.status === 401 ? err.message + " No samples are shown." : err.message;
   }
 }
 
