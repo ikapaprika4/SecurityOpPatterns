@@ -182,6 +182,12 @@ aws s3 rm s3://evtxkit-reports-772325758655/reports/manual-test-1/ --recursive
 hand. Do this only once step 6 works: it adds nothing that step 6 has not
 proven, except the trigger.
 
+These commands, and step 8's, need an identity that may create Lambda
+functions, set a bucket's notification and CORS, and set log retention. The
+key CI uses cannot (checked 2026-10-05), and widening a key that lives in
+GitHub is not worth it for a one-time setup: use an admin profile and add
+`--profile <name>` to each command.
+
 Its role may do three things (`lambda-start-analysis-policy.json`):
 
 | Statement | Allows | Why |
@@ -195,14 +201,15 @@ aws iam create-role --role-name evtxkitStartAnalysisRole --assume-role-policy-do
 aws iam put-role-policy --role-name evtxkitStartAnalysisRole --policy-name StartAnalysisTask --policy-document file://aws/lambda-start-analysis-policy.json
 MSYS_NO_PATHCONV=1 aws logs create-log-group --log-group-name /aws/lambda/evtxkit-start-analysis --region eu-north-1
 MSYS_NO_PATHCONV=1 aws logs put-retention-policy --log-group-name /aws/lambda/evtxkit-start-analysis --retention-in-days 30 --region eu-north-1
+# the task's own log holds the reports, which quote your customers' logs: keep it 30 days too
+MSYS_NO_PATHCONV=1 aws logs put-retention-policy --log-group-name /ecs/evtxkit --retention-in-days 30 --region eu-north-1
 ```
 
-Package and create the function. The zip is one file; `boto3` comes with the
-Lambda runtime.
+Package and create the function. `tools/build_lambdas.py` writes both zips to
+`build/`; the trigger's is one file, and `boto3` comes with the Lambda runtime.
 
 ```bash
-mkdir -p build
-(cd aws/lambda/start_analysis && python -m zipfile -c ../../../build/start-analysis.zip handler.py)
+python tools/build_lambdas.py
 aws lambda create-function --function-name evtxkit-start-analysis --runtime python3.12 --handler handler.handler --role arn:aws:iam::772325758655:role/evtxkitStartAnalysisRole --zip-file fileb://build/start-analysis.zip --timeout 30 --memory-size 128 --region eu-north-1 --environment "Variables={ECS_CLUSTER=evtxkit-cluster,TASK_DEFINITION=evtxkit-task,SUBNETS=subnet-03f1948ab29775079,SECURITY_GROUPS=sg-0aac35e37f78a3f63,UPLOADS_BUCKET=evtxkit-uploads-772325758655}"
 aws lambda put-function-event-invoke-config --function-name evtxkit-start-analysis --maximum-retry-attempts 2 --maximum-event-age-in-seconds 300 --region eu-north-1
 ```
@@ -217,7 +224,7 @@ right for a bucket that has none yet.
 
 ```bash
 aws lambda add-permission --function-name evtxkit-start-analysis --statement-id AllowTheUploadsBucket --action lambda:InvokeFunction --principal s3.amazonaws.com --source-arn arn:aws:s3:::evtxkit-uploads-772325758655 --source-account 772325758655 --region eu-north-1
-aws s3api put-bucket-notification-configuration --bucket evtxkit-uploads-772325758655 --notification-configuration file://aws/uploads-bucket-notification.json
+aws s3api put-bucket-notification-configuration --bucket evtxkit-uploads-772325758655 --region eu-north-1 --notification-configuration file://aws/uploads-bucket-notification.json
 ```
 
 Test it: the same upload as step 6 under a new job id, and no `run-task`.
@@ -257,14 +264,17 @@ MSYS_NO_PATHCONV=1 aws logs put-retention-policy --log-group-name /aws/lambda/ev
 ```
 
 The page is open to the internet, so the API behind it asks for an access
-code: without one, anyone who finds the address could run tasks on your
-account. This makes a long random one and creates the function with it.
+code, one per person: without one, anyone who finds the address could run
+tasks on your account. The function holds only a fingerprint (SHA-256) of each
+code, never the code, so a leaked setting cannot be used to sign in.
+`tools/access_codes.py` makes the codes and the function's environment. Run it
+in your own terminal, so the codes are shown to you and nobody else, and give
+each person theirs. Names are lowercase letters and digits (`alice`).
 
 ```bash
-mkdir -p build
-(cd aws/lambda/upload_api && python -m zipfile -c ../../../build/upload-api.zip handler.py web)
-CODE=$(python -c "import secrets; print(secrets.token_urlsafe(18))" | tr -d '\r')
-aws lambda create-function --function-name evtxkit-upload-api --runtime python3.12 --handler handler.handler --role arn:aws:iam::772325758655:role/evtxkitUploadApiRole --zip-file fileb://build/upload-api.zip --timeout 15 --memory-size 256 --region eu-north-1 --environment "Variables={UPLOADS_BUCKET=evtxkit-uploads-772325758655,REPORT_BUCKET=evtxkit-reports-772325758655,ACCESS_CODE=$CODE}"
+python tools/build_lambdas.py
+python tools/access_codes.py alice bob --env-file build/upload-api-environment.json
+aws lambda create-function --function-name evtxkit-upload-api --runtime python3.12 --handler handler.handler --role arn:aws:iam::772325758655:role/evtxkitUploadApiRole --zip-file fileb://build/upload-api.zip --timeout 15 --memory-size 256 --region eu-north-1 --environment file://build/upload-api-environment.json
 ```
 
 Give it an address. A public function URL needs both permissions; with only
@@ -278,18 +288,19 @@ aws lambda add-permission --function-name evtxkit-upload-api --statement-id Func
 ```
 
 Last, let that one address post to the bucket from a browser. This fills the
-address into a copy of `uploads-bucket-cors.json` and prints the link to hand
-out, access code included.
+address into a copy of `uploads-bucket-cors.json` and prints the address to
+hand out.
 
 ```bash
 URL=$(aws lambda get-function-url-config --function-name evtxkit-upload-api --region eu-north-1 --query FunctionUrl --output text | tr -d '\r')
 sed "s|https://PAGE-ORIGIN|${URL%/}|" aws/uploads-bucket-cors.json > build/uploads-bucket-cors.json
 grep AllowedOrigins build/uploads-bucket-cors.json
-aws s3api put-bucket-cors --bucket evtxkit-uploads-772325758655 --cors-configuration file://build/uploads-bucket-cors.json
-echo "$URL#code=$CODE"
+aws s3api put-bucket-cors --bucket evtxkit-uploads-772325758655 --region eu-north-1 --cors-configuration file://build/uploads-bucket-cors.json
+echo "$URL"
 ```
 
-Open the link and upload `samples/evtxkit/rdp_brute_force.jsonl`, then a real
+Open the address, type one person's code, and upload
+`samples/evtxkit/rdp_brute_force.jsonl`, then a real
 `.evtx`.
 
 **Working** looks like this: the bar fills during the upload; "Waiting for
@@ -300,15 +311,83 @@ If it does not:
 
 | What you see | Where to look |
 |---|---|
-| "The access code is missing or wrong." | The code in the link is not the function's `ACCESS_CODE` |
-| "The service is not set up yet." | One of the function's three environment variables is missing |
+| "The access code is missing or wrong." | The code is not one `tools/access_codes.py` made for this function's `USERS`. The function keeps only fingerprints, so a lost code cannot be looked up: make a new one |
+| "The service is not set up yet." | `UPLOADS_BUCKET`, `REPORT_BUCKET` or `USERS` is missing, or `USERS` is not valid; the function's log says which |
 | "The upload did not go through." straight away | The bucket's CORS rule: its origin must be the page's address exactly, with no `/` at the end |
 | "The upload was refused" | `evtxkitUploadApiRole` lacks `s3:PutObject` on `uploads/*`, or the link was more than five minutes old |
 | "The analysis did not start." after six minutes | The trigger: `aws logs tail /aws/lambda/evtxkit-start-analysis` |
 | A plain `Forbidden` instead of the page | The second `add-permission` command above |
 
-To change the code later, package again and run
-`aws lambda update-function-code --function-name <name> --zip-file fileb://build/<name>.zip --region eu-north-1`.
+To update a function's own code later, run `python tools/build_lambdas.py`
+and then
+`aws lambda update-function-code --function-name <name> --zip-file fileb://build/<zip> --region eu-north-1`
+(`upload-api.zip` for `evtxkit-upload-api`, `start-analysis.zip` for the
+trigger). Settings are separate: `update-function-code` leaves them as they are.
+
+## The sample logs on the page
+
+Under the upload box the page lists sample logs, for a tester who has no
+Windows log to hand. Pressing one loads it from the site and fills the box;
+pressing Analyse then sends it through exactly the same steps as a file of
+your own: S3, the trigger, a Fargate task, the report. Each entry says what
+the report should contain, for example "Expect: High or critical findings
+(EVTX-LOGON-BRUTE-01, ...)". The list needs a valid access code, like
+everything else on the API.
+
+- `aws/lambda/upload_api/samples.json` lists them (file, title, what it
+  shows, the worst severity and the rules evtxkit should report).
+- The files are the repository's own `samples/evtxkit/*`, copied into the zip
+  by `tools/build_lambdas.py`: there is one copy of each, and the build stops
+  if a listed file is missing.
+- `tests/test_upload_flow.py` runs evtxkit on every listed sample and fails if
+  the worst severity, the rules or the exit code differ from what the page
+  promises, so the page cannot go on telling testers something false.
+- To add one: put the file in `samples/evtxkit/`, add an entry to
+  `samples.json`, run the tests, rebuild, and update the function's code.
+
+## People and their codes
+
+Each person has a name (`alice`) and a code only they hold. The name is the
+start of every job id (`alice-<128 random bits>`), so a person can only see
+their own jobs, and the function's log says who uploaded what (`upload_signed`
+has the name). The function's `USERS` setting is
+`{"alice": "<fingerprint>", ...}`: fingerprints, not codes.
+
+Read the current setting, change it with the tool, write it back. The tool
+shows new codes once; it cannot show an existing one again. Run only the tool
+line you need.
+
+```bash
+aws lambda get-function-configuration --function-name evtxkit-upload-api --region eu-north-1 --query "Environment.Variables.USERS" --output text > build/current-users.json
+python tools/access_codes.py carol --keep @build/current-users.json --env-file build/upload-api-environment.json
+python tools/access_codes.py --keep @build/current-users.json --remove bob --env-file build/upload-api-environment.json
+python tools/access_codes.py alice --keep @build/current-users.json --remove alice --env-file build/upload-api-environment.json
+aws lambda update-function-configuration --function-name evtxkit-upload-api --environment file://build/upload-api-environment.json --region eu-north-1
+```
+
+In order: add carol, take bob out, give alice a new code. A removed or replaced
+code stops working as soon as the update has finished, a few seconds. What the
+person uploaded stays where it is until it expires. A function's whole
+environment is limited to 4 KB, about 30 people; past that, keep the
+fingerprints in SSM Parameter Store, or move to a real login (Cognito).
+
+Typing the code is safer than a link that carries it (`ADDRESS/#code=CODE`):
+a link ends up in browser history and in chats.
+
+### Moving from the first version's single code
+
+The first version of this page had one shared code in an `ACCESS_CODE`
+setting. To move to people, update the code and then replace the environment,
+which also drops `ACCESS_CODE`. For a few seconds in between, the API answers
+503.
+
+```bash
+python tools/build_lambdas.py
+python tools/access_codes.py alice bob --env-file build/upload-api-environment.json
+aws lambda update-function-code --function-name evtxkit-upload-api --zip-file fileb://build/upload-api.zip --region eu-north-1
+aws lambda wait function-updated-v2 --function-name evtxkit-upload-api --region eu-north-1
+aws lambda update-function-configuration --function-name evtxkit-upload-api --environment file://build/upload-api-environment.json --region eu-north-1
+```
 
 ## Switching it off
 
@@ -327,11 +406,11 @@ aws s3api put-bucket-notification-configuration --bucket evtxkit-uploads-7723257
 
 ## What this first version leaves out
 
-- **Rate limiting.** A function URL has none. The access code is the only
-  gate, and everyone you give the link to shares it. For real customers, put
+- **Rate limiting.** A function URL has none. A person's code is the only
+  gate, so anyone holding a code can start as many tasks as they like. For real customers, put
   the same function behind an API Gateway HTTP API (it sends the same event
   format, so the code does not change) or CloudFront with WAF, and give each
-  customer their own credentials.
+  customer a real login (Amazon Cognito).
 - **A retry queue for the trigger.** If ECS refuses to start a task three
   times in a row, that upload is never analysed and the page says so after
   six minutes. The reason is in the trigger's log; nothing re-drives it.

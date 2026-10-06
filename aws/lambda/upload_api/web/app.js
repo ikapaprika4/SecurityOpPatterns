@@ -19,6 +19,7 @@ const els = {
   dropTitle: $("dropTitle"), dropHint: $("dropHint"), submit: $("submit"),
   progress: $("progress"), bar: $("bar"), status: $("status"),
   steps: [$("stepUpload"), $("stepStart"), $("stepAnalyse")],
+  samples: $("samples"), sampleNote: $("sampleNote"), sampleList: $("sampleList"),
   error: $("error"), retry: $("retry"),
   result: $("result"), verdict: $("verdict"), summary: $("summary"), report: $("report"),
   download: $("download"), again: $("again"),
@@ -28,6 +29,14 @@ const defaults = {title: els.dropTitle.textContent, hint: els.dropHint.textConte
 let chosen = null;      // the File to upload
 let job = null;         // the job in progress: {id, uploadedAt, misses, timer}
 let finished = null;    // the id of the job whose report is on the page
+let samplesFor = "";    // the access code the list of samples was loaded with
+
+// What the page's own verdict will say for a sample, from the worst severity evtxkit rates it.
+function expected(sample) {
+  if (sample.worst === "critical" || sample.worst === "high") return "High or critical findings";
+  if (sample.rules.length) return "Findings, none high or critical";
+  return "No findings";
+}
 
 function problem(message, status) {
   return Object.assign(new Error(message), {status: status});
@@ -56,6 +65,9 @@ function ready() {
 function lock(on) {
   els.code.disabled = on;
   els.file.disabled = on;
+  els.sampleList.querySelectorAll("button").forEach((button) => {
+    button.disabled = on;
+  });
 }
 
 function choose(file) {
@@ -75,6 +87,65 @@ function choose(file) {
   els.dropTitle.textContent = chosen ? chosen.name : defaults.title;
   els.dropHint.textContent = chosen ? readable(chosen.size) + ". Choose or drop another file to replace it." : defaults.hint;
   ready();
+}
+
+function showSamples(samples) {
+  els.sampleList.replaceChildren();
+  samples.forEach((sample) => {
+    const item = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "sample";
+    const title = document.createElement("strong");
+    title.textContent = sample.title;
+    const about = document.createElement("span");
+    about.textContent = sample.about;
+    const result = document.createElement("small");
+    result.textContent = "Expect: " + expected(sample) + (sample.rules.length ? " (" + sample.rules.join(", ") + ")" : "");
+    button.append(title, about, result);
+    button.addEventListener("click", () => useSample(sample));
+    item.append(button);
+    els.sampleList.append(item);
+  });
+}
+
+// The samples need a valid code like everything else. Loaded once the code is typed (or came in the link).
+async function loadSamples() {
+  const code = els.code.value.trim();
+  if (!code) {
+    samplesFor = "";
+    els.samples.hidden = true;
+    return;
+  }
+  if (code === samplesFor) return;
+  samplesFor = code;
+  els.samples.hidden = false;
+  els.sampleNote.textContent = "Loading the samples…";
+  els.sampleList.replaceChildren();
+  try {
+    const data = await api("GET", "api/samples");
+    els.sampleNote.textContent = "Pick one, then press Analyse. It goes through exactly the same steps as a file of your own.";
+    showSamples(data.samples || []);
+  } catch (err) {
+    samplesFor = "";
+    els.sampleNote.textContent = err.status === 401
+      ? "That access code was not accepted, so no samples are shown." : err.message;
+  }
+}
+
+async function useSample(sample) {
+  if (job) return;
+  hideError();
+  try {
+    const response = await fetch("api/samples/" + encodeURIComponent(sample.file), {
+      headers: {"X-Access-Code": els.code.value.trim()}, cache: "no-store",
+    });
+    if (!response.ok) throw problem("The sample could not be loaded.", response.status);
+    choose(new File([await response.arrayBuffer()], sample.file));
+    els.submit.focus();
+  } catch (err) {
+    showError(err.status ? err.message : "The sample could not be loaded. Check your connection and try again.");
+  }
 }
 
 function step(name, text, fraction) {
@@ -277,6 +348,7 @@ function codeFromLink() {
   }
   window.history.replaceState(null, "", window.location.pathname + window.location.search);
   ready();
+  loadSamples();
 }
 
 function init() {
@@ -284,6 +356,7 @@ function init() {
   window.addEventListener("hashchange", codeFromLink);    // the link opened in a tab that already shows the page
 
   els.code.addEventListener("input", ready);
+  els.code.addEventListener("change", loadSamples);       // when the field loses focus or Enter is pressed
   els.file.addEventListener("change", () => choose(els.file.files[0]));
   ["dragenter", "dragover"].forEach((type) => els.drop.addEventListener(type, (event) => {
     event.preventDefault();

@@ -22,6 +22,7 @@ import argparse
 import base64
 import contextlib
 import datetime
+import hashlib
 import importlib.util
 import io
 import json
@@ -223,7 +224,10 @@ class Flow:
         self.upload_api = load_lambda("upload_api")
         self.start_analysis = load_lambda("start_analysis")
         self.upload_api.print = self.start_analysis.print = log     # the functions' CloudWatch logs
-        self.api_env = {"UPLOADS_BUCKET": UPLOADS_BUCKET, "REPORT_BUCKET": REPORT_BUCKET, "ACCESS_CODE": access_code}
+        # One person, "local", whose code is the one printed at start-up; like the real
+        # function this holds only the code's fingerprint.
+        self.api_env = {"UPLOADS_BUCKET": UPLOADS_BUCKET, "REPORT_BUCKET": REPORT_BUCKET,
+                        "USERS": json.dumps({"local": hashlib.sha256(access_code.encode("utf-8")).hexdigest()})}
         self.trigger_env = {"ECS_CLUSTER": "local", "TASK_DEFINITION": "evtxkit-task", "SUBNETS": "subnet-local",
                             "SECURITY_GROUPS": "sg-local", "UPLOADS_BUCKET": UPLOADS_BUCKET}
         self.trigger_errors: list[Exception] = []

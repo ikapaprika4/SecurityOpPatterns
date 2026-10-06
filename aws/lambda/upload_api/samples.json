@@ -1,0 +1,65 @@
+[
+  {
+    "file": "rdp_brute_force.jsonl",
+    "title": "RDP brute force",
+    "about": "Many failed logons from one address, then a successful one.",
+    "worst": "critical",
+    "rules": ["EVTX-LOGON-BRUTE-01", "EVTX-LOGON-BRUTE-SUCCESS-01"]
+  },
+  {
+    "file": "log_cleared.xml",
+    "title": "Event log cleared (Event Viewer XML export)",
+    "about": "The Security and System logs are cleared by an account that has no reason to.",
+    "worst": "high",
+    "rules": ["EVTX-DEFENSE-LOGCLEAR-01"]
+  },
+  {
+    "file": "backdoor_user.jsonl",
+    "title": "Backdoor administrator account",
+    "about": "A new local account is created, given a password reset and added to Administrators.",
+    "worst": "critical",
+    "rules": ["EVTX-USER-BACKDOOR-ADMIN-01", "EVTX-USER-GROUP-01", "EVTX-USER-NEW-01", "EVTX-USER-PWRESET-01"]
+  },
+  {
+    "file": "persistence.jsonl",
+    "title": "Persistence",
+    "about": "A Run key, a service, a startup item and a scheduled task, all created within minutes.",
+    "worst": "high",
+    "rules": ["EVTX-PERSIST-RUNKEY-01", "EVTX-PERSIST-SERVICE-01", "EVTX-PERSIST-STARTUP-01", "EVTX-PERSIST-TASK-01"]
+  },
+  {
+    "file": "powershell_scriptblocks.xml",
+    "title": "Suspicious PowerShell (XML export)",
+    "about": "Script blocks that download and run code in memory.",
+    "worst": "critical",
+    "rules": ["EVTX-EXEC-PSSUSPICIOUS-01"]
+  },
+  {
+    "file": "c2_transfer.jsonl",
+    "title": "Command-and-control traffic",
+    "about": "A process talks to an unusual address and transfers a file out.",
+    "worst": "high",
+    "rules": ["EVTX-C2-SUSPICIOUS-NETWORK-01", "EVTX-C2-TRANSFER-01"]
+  },
+  {
+    "file": "security_only.jsonl",
+    "title": "Several stages in one log",
+    "about": "Discovery, encoded PowerShell, a file transfer and a log being cleared.",
+    "worst": "high",
+    "rules": ["EVTX-C2-TRANSFER-01", "EVTX-DEFENSE-LOGCLEAR-01", "EVTX-DISCOVERY-SEQ-01", "EVTX-EXEC-ENCODED-PS-01", "EVTX-EXEC-PSSUSPICIOUS-01"]
+  },
+  {
+    "file": "usb_execution.jsonl",
+    "title": "Program run from a USB stick",
+    "about": "One finding, rated below high: the verdict stays 'no high or critical findings'.",
+    "worst": "medium",
+    "rules": ["EVTX-EXEC-REMOVABLE-01"]
+  },
+  {
+    "file": "clean_baseline.jsonl",
+    "title": "Normal activity",
+    "about": "Ordinary logons and processes. Nothing should be found.",
+    "worst": "info",
+    "rules": []
+  }
+]

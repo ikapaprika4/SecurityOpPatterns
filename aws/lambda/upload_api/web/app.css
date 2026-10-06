@@ -52,6 +52,18 @@ form{display:grid;gap:16px}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 form .btn{justify-self:start;min-width:140px}
 
+/* ---------- samples ---------- */
+.samples{margin-top:28px}
+h3{font-family:var(--serif);font-size:17px;font-weight:600;margin:0 0 6px}
+.samples ul{list-style:none;margin:12px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.sample{display:grid;gap:3px;width:100%;height:100%;text-align:left;padding:12px 14px;border:1px solid var(--rule);border-radius:10px;
+  background:var(--raised);cursor:pointer;overflow-wrap:anywhere}
+.sample:hover{border-color:var(--ink)}
+.sample:disabled{opacity:.5;cursor:not-allowed}
+.sample strong{font-size:14px}
+.sample span{color:var(--soft);font-size:13px}
+.sample small{color:var(--faint);font:12px/1.4 var(--mono)}
+
 /* ---------- progress ---------- */
 #progress{margin-top:28px;padding:20px;border:1px solid var(--rule);border-radius:12px;background:var(--raised)}
 .steps{display:flex;gap:8px;list-style:none;margin:0 0 14px;padding:0;font:600 12px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase}

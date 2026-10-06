@@ -14,26 +14,36 @@ and settings; aws/UPLOAD-FLOW.md covers that.
 from __future__ import annotations
 
 import base64
+import contextlib
+import hashlib
 import http.client
+import importlib.util
+import io
 import json
 import math
 import os
 import re
 import sys
+import tempfile
 import threading
 import unittest
+import zipfile
 
 ROOT =os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 
+import access_codes  # noqa: E402
+import build_lambdas  # noqa: E402
 import local_upload_flow as local  # noqa: E402
 import s3_wrapper  # noqa: E402
 
 AWS = os.path.join(ROOT, "aws")
 UPLOADS, REPORTS = "evtxkit-uploads-test", "evtxkit-reports-test"
-CODE = "correct-horse-battery"
-JOB = "0123456789abcdef0123456789abcdef"
+CODE = "correct-horse-battery"                    # alice's code
+BOB_CODE = "battery-staple-horse"
+JOB = "alice-0123456789abcdef0123456789abcdef"    # a job of alice's
+BOB_JOB = "bob-fedcba9876543210fedcba9876543210"  # a job of bob's
 
 start_analysis = local.load_lambda("start_analysis")
 upload_api = local.load_lambda("upload_api")
@@ -193,7 +203,13 @@ class TestStartAnalysis(unittest.TestCase):
 # upload_api: the page, pre-signed uploads, job status
 # --------------------------------------------------------------------------
 
-API_ENV = {"UPLOADS_BUCKET": UPLOADS, "REPORT_BUCKET": REPORTS, "ACCESS_CODE": CODE}
+def sha256(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+# The function is given fingerprints, never codes.
+API_ENV = {"UPLOADS_BUCKET": UPLOADS, "REPORT_BUCKET": REPORTS,
+           "USERS": json.dumps({"alice": sha256(CODE), "bob": sha256(BOB_CODE)})}
 
 
 def call(method: str, path: str, body=None, code: str | None = CODE, env: dict | None = None, s3=None, **event):
@@ -273,12 +289,67 @@ class TestUploadApi(unittest.TestCase):
             self.assertEqual(call("GET", f"/api/jobs/{JOB}", code="", env=env)[0], 503, missing)
             self.assertEqual(call("GET", "/", code=None, env=env)[0], 200)     # the page itself still loads
 
+    def test_a_wrong_users_setting_refuses_everything(self):
+        fp = sha256(CODE)
+        wrong = ["", "   ", "not json", "[]", "{}", '"alice"',
+                 json.dumps({"Alice": fp}), json.dumps({"a": fp}), json.dumps({"alice-b": fp}),
+                 json.dumps({"alice": "short"}), json.dumps({"alice": fp.upper()}), json.dumps({"alice": 7}),
+                 json.dumps({"alice": fp, "bob": fp})]                          # two people, one code
+        for users in wrong:
+            env = dict(API_ENV, USERS=users)
+            for code in (CODE, None):
+                self.assertEqual(call("POST", "/api/uploads", {"filename": "a.evtx"}, code=code, env=env)[:2],
+                                 (503, {"error": "The service is not set up yet."}), users)
+
+    def test_the_setting_holds_fingerprints_and_never_a_code(self):
+        users = json.loads(API_ENV["USERS"])
+        self.assertEqual(set(users), {"alice", "bob"})
+        for code in (CODE, BOB_CODE):
+            self.assertNotIn(code, API_ENV["USERS"])
+            self.assertIn(sha256(code), users.values())
+        self.assertEqual(upload_api.fingerprint(CODE), sha256(CODE))
+
+    def test_each_person_has_their_own_code_and_sees_only_their_own_jobs(self):
+        s3 = local.LocalS3()
+        mine = call("POST", "/api/uploads", {"filename": "a.evtx"}, s3=s3)[1]
+        theirs = call("POST", "/api/uploads", {"filename": "a.evtx"}, code=BOB_CODE, s3=s3)[1]
+        self.assertRegex(mine["job_id"], r"^alice-[0-9a-f]{32}$")
+        self.assertRegex(theirs["job_id"], r"^bob-[0-9a-f]{32}$")
+        for job_id, owner_code, other_code in ((mine["job_id"], CODE, BOB_CODE), (theirs["job_id"], BOB_CODE, CODE)):
+            write_status(s3, job_id=job_id)
+            self.assertEqual(call("GET", f"/api/jobs/{job_id}", code=owner_code, s3=s3)[1]["state"], "running")
+            # Someone else's job answers exactly like one that does not exist.
+            self.assertEqual(call("GET", f"/api/jobs/{job_id}", code=other_code, s3=s3)[:2],
+                             (404, {"error": "No such job."}))
+        self.assertEqual(call("GET", f"/api/jobs/alice-{'0' * 32}", code=BOB_CODE, s3=s3)[:2],
+                         (404, {"error": "No such job."}))
+
+    def test_a_code_that_is_far_too_long_is_refused_not_hashed(self):
+        self.assertEqual(call("POST", "/api/uploads", {"filename": "a.evtx"}, code="x" * 5000)[0], 401)
+
+    def test_what_is_logged_has_no_code_in_it(self):
+        lines = []
+        upload_api.print = lambda *args, **kwargs: lines.append(" ".join(map(str, args)))
+        try:
+            call("POST", "/api/uploads", {"filename": "a.evtx"}, code="a-wrong-code-12345",
+                 requestContext={"http": {"method": "POST", "path": "/api/uploads", "sourceIp": "203.0.113.7"}})
+            call("POST", "/api/uploads", {"filename": "a.evtx"}, code=CODE)
+            call("POST", "/api/uploads", {"filename": "a.evtx"}, code=BOB_CODE)
+        finally:
+            upload_api.print = lambda *args, **kwargs: None
+        text = "\n".join(lines)
+        self.assertIn('"auth_failed": {"ip": "203.0.113.7"}', text)
+        self.assertIn('"upload_signed": {"user": "alice"', text)
+        self.assertIn('"upload_signed": {"user": "bob"', text)
+        for secret in ("a-wrong-code-12345", CODE, BOB_CODE, sha256(CODE)):
+            self.assertNotIn(secret, text)
+
     # ---- signing an upload --------------------------------------------------
     def test_an_upload_is_signed_for_one_key_one_size_range_and_a_few_minutes(self):
         s3 = local.LocalS3()
         status, body, _ = call("POST", "/api/uploads", {"filename": "Security.evtx", "size": 4096}, s3=s3)
         self.assertEqual(status, 201)
-        self.assertRegex(body["job_id"], r"^[0-9a-f]{32}$")
+        self.assertRegex(body["job_id"], r"^alice-[0-9a-f]{32}$")
         self.assertEqual(body["upload"]["fields"]["key"], f"uploads/{body['job_id']}/Security.evtx")
         self.assertEqual(body["upload"]["url"], f"{local.S3_PATH}/{UPLOADS}")
         self.assertEqual((body["max_bytes"], body["expires_in"]), (64 * 1024 * 1024, 300))
@@ -393,7 +464,9 @@ class TestUploadApi(unittest.TestCase):
 
     def test_only_ids_this_api_made_can_be_asked_about(self):
         s3 = local.LocalS3()
-        for job_id in ("manual-test-1", JOB.upper(), JOB[:-1], JOB + "0", "..", "%2e%2e", "status.json"):
+        for job_id in ("manual-test-1", JOB.upper(), JOB[:-1], JOB + "0", JOB.split("-", 1)[1],   # no owner in front
+                       BOB_JOB, "carol-" + "0" * 32,                       # someone else's, and nobody's
+                       "..", "%2e%2e", "status.json"):
             write_status(s3, job_id=job_id, state="done", report_key=f"reports/{job_id}/report.md")
             self.assertEqual(call("GET", f"/api/jobs/{job_id}", s3=s3)[0], 404, job_id)
         self.assertEqual(call("GET", f"/api/jobs/{JOB}/report.md", s3=s3)[0], 404)
@@ -567,9 +640,10 @@ class TestAwsFiles(unittest.TestCase):
         self.assertGreaterEqual(len(referenced), 7)
         for name in referenced:
             self.assertTrue(os.path.exists(os.path.join(AWS, name)), name)
-        for setting in start_analysis.REQUIRED + ("ACCESS_CODE", "REPORT_BUCKET", "handler.handler",
+        for setting in start_analysis.REQUIRED + ("USERS", "REPORT_BUCKET", "handler.handler",
                                                   "evtxkit-start-analysis", "evtxkit-upload-api",
-                                                  "tools/local_upload_flow.py"):
+                                                  "tools/local_upload_flow.py", "tools/access_codes.py",
+                                                  "tools/build_lambdas.py"):
             self.assertIn(setting, runbook)
         for folder in re.findall(r"cd (aws/lambda/\w+)", runbook):
             self.assertTrue(os.path.exists(os.path.join(ROOT, folder, "handler.py")), folder)
@@ -667,7 +741,7 @@ class TestLocalFlow(unittest.TestCase):
 
         status, headers, downloaded = self.http("GET", job["download_url"])
         self.assertEqual((status, downloaded.decode("utf-8")), (200, job["report"]))
-        self.assertEqual(headers["content-disposition"], f'attachment; filename="evtxkit-report-{job_id[:8]}.md"')
+        self.assertEqual(headers["content-disposition"], f'attachment; filename="evtxkit-report-{job_id.split("-", 1)[1][:8]}.md"')
 
         # The complete transcript is in the task's log; S3 holds only the report and the status.
         self.assertIn(f"Uploaded to s3://{local.REPORT_BUCKET}/reports/{job_id}/report.md", self.flow.ecs.transcripts[-1])
@@ -721,6 +795,254 @@ class TestLocalFlow(unittest.TestCase):
         self.assertEqual(self.http("GET", "/", headers={"Host": "attacker.example"})[0], 403)
         self.assertEqual(self.http("GET", f"{local.S3_PATH}/{local.REPORT_BUCKET}/reports/{JOB}/report.md")[0], 403)
         self.assertEqual(self.http("PUT", f"{local.S3_PATH}/{local.UPLOADS_BUCKET}")[0], 405)
+
+
+# --------------------------------------------------------------------------
+# The sample logs the page offers
+# --------------------------------------------------------------------------
+
+class TestSamples(unittest.TestCase):
+    def test_what_the_page_says_to_expect_is_what_evtxkit_really_finds(self):
+        catalog = upload_api.sample_catalog()
+        listed = json.loads(read("aws", "lambda", "upload_api", "samples.json"))
+        self.assertEqual(set(catalog), {e["file"] for e in listed})      # every listed file is there and accepted
+        outcomes = set()
+        for name, entry in catalog.items():
+            result = s3_wrapper.run_evtxkit(["analyze", entry["path"], "-f", "json"], cwd=ROOT)
+            report = json.loads(result.stdout)
+            self.assertEqual(entry["worst"], report["worst_severity"], name)
+            self.assertEqual(sorted(entry["rules"]), sorted({f["rule_id"] for f in report["findings"]}), name)
+            high = entry["worst"] in ("high", "critical")
+            self.assertEqual(result.returncode, 1 if high else 0, name)   # the exit code is what the verdict is made from
+            outcomes.add("high" if high else "below" if entry["rules"] else "none")
+        # A tester sees all three kinds of answer: findings, findings below high, and a clean log.
+        self.assertEqual(outcomes, {"high", "below", "none"})
+
+    def test_the_list_and_the_files_need_a_code(self):
+        for path in ("/api/samples", "/api/samples/rdp_brute_force.jsonl"):
+            for code in (None, "", "wrong"):
+                self.assertEqual(call("GET", path, code=code)[0], 401, (path, code))
+
+    def test_the_list_says_what_each_sample_is_and_hides_where_it_is_kept(self):
+        status, body, _ = call("GET", "/api/samples")
+        self.assertEqual(status, 200)
+        self.assertIn("rdp_brute_force.jsonl", [s["file"] for s in body["samples"]])
+        for entry in body["samples"]:
+            self.assertEqual(set(entry), {"file", "title", "about", "worst", "rules", "bytes"})
+        self.assertNotIn(ROOT, json.dumps(body))
+        self.assertEqual(call("POST", "/api/samples")[0], 405)
+
+    def test_a_sample_arrives_byte_for_byte(self):
+        self.assertIn(b"\r\n", sample("log_cleared.xml"))        # the line endings are part of the evidence
+        for name in upload_api.sample_catalog():
+            status, _body, response = call("GET", f"/api/samples/{name}")
+            self.assertEqual(status, 200, name)
+            self.assertTrue(response["isBase64Encoded"], name)
+            self.assertEqual(base64.b64decode(response["body"]), sample(name), name)
+            self.assertEqual(response["headers"]["Content-Disposition"], f'attachment; filename="{name}"')
+        self.assertEqual(call("POST", "/api/samples/log_cleared.xml")[0], 405)
+
+    def test_only_listed_samples_can_be_asked_for(self):
+        for name in ("nope.jsonl", "../handler.py", "..%2Fhandler.py", "..%5Chandler.py", "handler.py", "samples.json",
+                     "RDP_BRUTE_FORCE.JSONL", "rdp_brute_force.jsonl/", "%2e%2e", "", "clean_baseline_ConsoleHost_history.txt"):
+            self.assertEqual(call("GET", f"/api/samples/{name}")[0], 404, name)
+
+    def test_a_bad_or_missing_listing_never_reaches_the_file_system(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            os.makedirs(os.path.join(tmp, "samples"))
+            for path, data in ((("samples", "ok.jsonl"), b"{}"), (("secret.txt",), b"secret")):
+                with open(os.path.join(tmp, *path), "wb") as fh:
+                    fh.write(data)
+            listing = os.path.join(tmp, "samples.json")
+            saved = (upload_api.HERE, upload_api.SAMPLE_FOLDERS)
+            upload_api.HERE, upload_api.SAMPLE_FOLDERS = tmp, (os.path.join(tmp, "samples"),)
+            try:
+                def catalog(text: str | None) -> set:
+                    if text is None:
+                        if os.path.exists(listing):
+                            os.remove(listing)
+                    else:
+                        with open(listing, "w", encoding="utf-8") as fh:
+                            fh.write(text)
+                    upload_api._samples.clear()
+                    return set(upload_api.sample_catalog())
+
+                bad = [{"file": "ok.jsonl"}, {"file": "../secret.txt"}, {"file": "secret.txt"}, {"file": "missing.jsonl"},
+                       {"file": "ok.exe"}, {"file": "a/b.jsonl"}, {"file": "a\\b.jsonl"}, {"file": "x" * 90 + ".jsonl"},
+                       "text", {"file": 7}, {}, None]
+                self.assertEqual(catalog(json.dumps(bad)), {"ok.jsonl"})
+                self.assertEqual(catalog("not json"), set())
+                self.assertEqual(catalog('{"file": "ok.jsonl"}'), set())      # an object, not a list
+                self.assertEqual(catalog(None), set())                        # no listing at all
+            finally:
+                upload_api.HERE, upload_api.SAMPLE_FOLDERS = saved
+                upload_api._samples.clear()
+
+
+# --------------------------------------------------------------------------
+# tools/build_lambdas.py: the zips that are deployed
+# --------------------------------------------------------------------------
+
+class TestBuild(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.out = tempfile.TemporaryDirectory()
+        with contextlib.redirect_stdout(io.StringIO()):
+            assert build_lambdas.main(["--out", cls.out.name]) == 0
+        cls.api = zipfile.ZipFile(os.path.join(cls.out.name, "upload-api.zip"))
+        cls.trigger = zipfile.ZipFile(os.path.join(cls.out.name, "start-analysis.zip"))
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.api.close()
+        cls.trigger.close()
+        cls.out.cleanup()
+
+    def test_what_is_in_each_zip(self):
+        self.assertEqual(self.trigger.namelist(), ["handler.py"])
+        listed = [e["file"] for e in json.loads(read("aws", "lambda", "upload_api", "samples.json"))]
+        self.assertEqual(self.api.namelist(),
+                         sorted(["handler.py", "samples.json", "web/app.css", "web/app.js", "web/index.html"]
+                                + [f"samples/{name}" for name in listed]))
+        for info in self.api.infolist() + self.trigger.infolist():
+            self.assertEqual(info.external_attr >> 16, 0o644, info.filename)    # a function's user can read them
+            self.assertNotIn("__pycache__", info.filename)
+        self.assertLess(sum(i.compress_size for i in self.api.infolist()), 100 * 1024)
+
+    def test_the_samples_in_the_zip_are_the_repositorys_own_bytes(self):
+        for info in self.api.infolist():
+            if info.filename.startswith("samples/") and info.filename != "samples.json":
+                self.assertEqual(self.api.read(info.filename), sample(info.filename.split("/", 1)[1]), info.filename)
+
+    def test_the_same_files_make_the_same_zip(self):
+        with tempfile.TemporaryDirectory() as again, contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(build_lambdas.main(["--out", again]), 0)
+            for name in ("upload-api.zip", "start-analysis.zip"):
+                with open(os.path.join(again, name), "rb") as one, open(os.path.join(self.out.name, name), "rb") as two:
+                    self.assertEqual(one.read(), two.read(), name)
+
+    def test_the_function_works_from_the_unpacked_zip(self):
+        # What Lambda runs: the zip's own layout, with no repository around it.
+        with tempfile.TemporaryDirectory() as unpacked:
+            self.api.extractall(unpacked)
+            spec = importlib.util.spec_from_file_location("lambda_upload_api_unpacked", os.path.join(unpacked, "handler.py"))
+            module = importlib.util.module_from_spec(spec)
+            cached, sys.dont_write_bytecode = sys.dont_write_bytecode, True
+            try:
+                spec.loader.exec_module(module)
+            finally:
+                sys.dont_write_bytecode = cached
+            module.print = lambda *args, **kwargs: None
+            self.assertTrue(module.SAMPLE_FOLDERS[0].startswith(unpacked))
+            request = {"rawPath": "/api/samples", "headers": {"x-access-code": CODE},
+                       "requestContext": {"http": {"method": "GET", "path": "/api/samples"}}}
+            response = module.handle(request, API_ENV, local.LocalS3())
+            listed = json.loads(response["body"])["samples"]
+            self.assertEqual({s["file"] for s in listed}, set(upload_api.sample_catalog()))
+            request.update(rawPath="/api/samples/log_cleared.xml")
+            response = module.handle(request, API_ENV, local.LocalS3())
+            self.assertEqual(base64.b64decode(response["body"]), sample("log_cleared.xml"))
+            page = module.handle({"rawPath": "/", "requestContext": {"http": {"method": "GET"}}}, API_ENV,
+                                 local.LocalS3(base_url="https://b.s3.eu-north-1.amazonaws.com"))
+            self.assertIn("Try a sample", page["body"])
+
+    def test_a_listed_sample_that_is_missing_stops_the_build(self):
+        saved = build_lambdas.SAMPLES
+        build_lambdas.SAMPLES = os.path.join(ROOT, "no-such-folder")
+        try:
+            with contextlib.redirect_stderr(io.StringIO()) as err, tempfile.TemporaryDirectory() as out:
+                self.assertEqual(build_lambdas.main(["--out", out]), 2)
+                self.assertEqual(os.listdir(out), [])
+            self.assertIn("build_lambdas:", err.getvalue())
+        finally:
+            build_lambdas.SAMPLES = saved
+
+
+# --------------------------------------------------------------------------
+# tools/access_codes.py: where the codes and their fingerprints come from
+# --------------------------------------------------------------------------
+
+def run_codes(*argv):
+    """(exit code, stdout, stderr) of one run of the tool."""
+    out, err = io.StringIO(), io.StringIO()
+    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        code = access_codes.main(list(argv))
+    return code, out.getvalue(), err.getvalue()
+
+
+def printed_codes(out: str) -> dict:
+    """{name: code} for the codes the tool showed."""
+    found = (re.fullmatch(r"  ([a-z][a-z0-9]+)\s+([A-Za-z0-9_-]{24})", line) for line in out.splitlines())
+    return {m.group(1): m.group(2) for m in found if m}
+
+
+def printed_setting(out: str) -> dict:
+    return json.loads(next(line for line in out.splitlines() if line.startswith("{")))
+
+
+class TestAccessCodes(unittest.TestCase):
+    def test_new_people_get_random_codes_and_the_setting_holds_only_fingerprints(self):
+        code, out, _err = run_codes("alice", "bob")
+        self.assertEqual(code, 0)
+        codes, setting = printed_codes(out), printed_setting(out)
+        self.assertEqual(set(codes), {"alice", "bob"})
+        self.assertNotEqual(codes["alice"], codes["bob"])
+        for name, secret in codes.items():
+            self.assertEqual(setting[name], sha256(secret))
+            self.assertNotIn(secret, json.dumps(setting))
+        # The function accepts exactly those codes, for exactly those people.
+        users = upload_api.load_users({"USERS": json.dumps(setting)})
+        self.assertEqual(upload_api.who({"x-access-code": codes["bob"]}, users), "bob")
+        self.assertIsNone(upload_api.who({"x-access-code": codes["bob"] + "x"}, users))
+        self.assertIsNone(upload_api.who({}, users))
+
+    def test_every_run_makes_new_codes(self):
+        first = printed_codes(run_codes("alice")[1])["alice"]
+        self.assertNotEqual(first, printed_codes(run_codes("alice")[1])["alice"])
+
+    def test_adding_removing_and_replacing_someone_leaves_the_others_alone(self):
+        first = printed_setting(run_codes("alice", "bob")[1])
+        keep = json.dumps(first)
+
+        code, out, _err = run_codes("carol", "--keep", keep)
+        added = printed_setting(out)
+        self.assertEqual((code, set(printed_codes(out))), (0, {"carol"}))          # only carol's code is shown
+        self.assertEqual({name: added[name] for name in first}, first)             # alice and bob unchanged
+
+        code, out, _err = run_codes("--keep", keep, "--remove", "bob")
+        self.assertEqual((code, set(printed_setting(out)), printed_codes(out)), (0, {"alice"}, {}))
+
+        code, out, _err = run_codes("alice", "--keep", keep, "--remove", "alice")
+        replaced = printed_setting(out)
+        self.assertEqual(code, 0)
+        self.assertNotEqual(replaced["alice"], first["alice"])
+        self.assertEqual(replaced["bob"], first["bob"])
+
+    def test_mistakes_are_refused_and_no_code_is_shown(self):
+        keep = json.dumps(printed_setting(run_codes("alice")[1]))
+        for argv in (["Alice"], ["a"], ["alice-b"], ["x" * 21], ["bob", "bob"],
+                     ["alice", "--keep", keep],                                    # alice already has one
+                     ["--keep", keep, "--remove", "nobody"],
+                     ["--keep", keep, "--remove", "alice"],                        # nobody would be left
+                     ["bob", "--keep", "not json"], ["bob", "--keep", '{"Alice": "x"}'],
+                     ["bob", "--keep", "@no-such-file.json"]):
+            code, out, err = run_codes(*argv)
+            self.assertEqual(code, 2, argv)
+            self.assertEqual(printed_codes(out), {}, argv)
+            self.assertTrue(err.startswith("access_codes:"), argv)
+
+    def test_the_environment_file_replaces_the_whole_environment(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "nested", "environment.json")
+            code, out, _err = run_codes("alice", "--env-file", path)
+            with open(path, encoding="utf-8") as fh:
+                environment = json.load(fh)
+        self.assertEqual(code, 0)
+        self.assertEqual(set(environment), {"Variables"})
+        variables = environment["Variables"]
+        self.assertEqual(set(variables), {"UPLOADS_BUCKET", "REPORT_BUCKET", "USERS"})   # no ACCESS_CODE
+        self.assertEqual(json.loads(variables["USERS"]), printed_setting(out))
+        self.assertNotIn(printed_codes(out)["alice"], json.dumps(environment))
 
 
 if __name__ == "__main__":

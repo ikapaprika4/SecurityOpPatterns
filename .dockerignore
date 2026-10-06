@@ -15,3 +15,5 @@ infra
 tests/test_s3_wrapper.py
 tests/test_upload_flow.py
 tools/local_upload_flow.py
+tools/access_codes.py
+tools/build_lambdas.py
