@@ -2,7 +2,7 @@
 
 on:
   push:
-    branches: [main]
+    branches: [main, full-toolkit-pipeline]
   pull_request:
     branches: [main]
 
@@ -18,8 +18,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Run the evtxkit test suite
-        run: python run_tests.py evtxkit
+      - name: Run every test suite
+        run: python run_tests.py
+
+      - name: Package the two Lambda functions
+        run: python tools/build_lambdas.py
 
   docker-build:
     runs-on: ubuntu-latest

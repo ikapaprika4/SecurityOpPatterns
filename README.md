@@ -116,6 +116,40 @@ Optional packages (none is required):
 | `extract-msg` | a fallback `.msg` reader (`.msg` is read natively) |
 | `scapy` | regenerating the sample captures, and the opt-in comparison backend |
 
+## Windows event logs as a web service (AWS)
+
+evtxkit also runs as a small cloud service: someone opens a page, uploads a
+Windows event log, and gets the report back, without touching Docker, AWS or
+any code.
+
+```
+browser --> upload page (Lambda function URL, access code per person)
+        --> S3 uploads bucket (pre-signed POST: one key, 64 MB, 5 minutes)
+        --> S3 event --> Lambda --> ECS Fargate task (s3_wrapper.py + evtxkit)
+        --> S3 reports bucket (report.md + status.json) --> the page polls and shows it
+```
+
+- The page also offers the bundled sample logs, each with the result it should
+  give, so it can be tried without a log of your own.
+- Try the whole flow on your own machine, no AWS account needed (S3 and Fargate
+  are replaced by local stand-ins; everything else is the real code):
+
+  ```bash
+  python tools/local_upload_flow.py
+  ```
+
+- Setting it up on AWS, step by step, with the least-privilege policies and what
+  a working result looks like: [`aws/UPLOAD-FLOW.md`](aws/UPLOAD-FLOW.md).
+- `s3_wrapper.py` is the container's entry point, `aws/lambda/` holds the two
+  functions and the page, `tools/access_codes.py` makes the access codes (only
+  fingerprints are stored) and `tools/build_lambdas.py` packages the functions.
+
+Known limits of this first version: access is by a code per person, not by
+accounts; a Lambda function URL has no rate limiting; real `.evtx` files are read
+by evtxkit's own reader on Linux, which matches Windows' `wevtutil` on the logs
+tested so far but differs in rare value formatting. The runbook lists what is
+left out.
+
 ## Folder layout
 
 ```
@@ -124,8 +158,9 @@ socworkbench/        the app: recognition, engine, exports, local server, web UI
 phishkit/ evtxkit/ nsmkit/ trafkit/    the four toolkits
 soccore/             shared code: native pcap/pcapng reader, address classes, sliding windows
 samples/<kit>/       synthetic demo evidence (what "Samples" loads)
-tests/               python run_tests.py runs everything (303 tests)
-tools/               sample generators; native-vs-scapy packet reader comparison
+tests/               python run_tests.py runs every suite
+tools/               sample generators, packet reader comparison, upload-flow helpers
+aws/                 the AWS upload service: runbook, policies, task definition, Lambda functions
 docs/                toolkit manuals, build specs, CHANGES.md
 ```
 

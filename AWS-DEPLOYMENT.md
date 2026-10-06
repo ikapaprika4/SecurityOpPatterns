@@ -4,9 +4,14 @@ This documents the AWS side of `evtxkit`: containerized, stored in ECR, and run 
 
 ## Status
 
-- **Working:** image build → ECR push → Fargate task → CloudWatch logs. Verified end-to-end, including from a second machine authenticated to the same AWS account.
-- **Built but not currently wired in:** an S3 upload wrapper (`s3_wrapper.py`) and a scoped task role (`evtxkitTaskRole`) for writing scan reports to S3. The role and bucket exist; the currently-deployed image does not include the wrapper, so nothing is actively uploading right now.
-- **Manual, not automated:** every step here is run by hand via the AWS CLI. This isn't yet wired into the GitHub Actions pipeline that builds/pushes to Docker Hub.
+> **Updated.** The upload → analyse → report service built on top of this
+> (S3 uploads bucket, two Lambda functions, an upload page, per-person access
+> codes) is documented step by step in [`aws/UPLOAD-FLOW.md`](aws/UPLOAD-FLOW.md).
+> This page covers the original container setup it builds on.
+
+- **Working:** image build → ECR push → Fargate task → CloudWatch logs, and the S3 wrapper (`s3_wrapper.py`) in the image: it analyses an uploaded file and writes `reports/<job id>/report.md` and `status.json` to the reports bucket, or, without an input file, runs plain evtxkit and uploads its output. Both were run on AWS (eu-north-1) in October 2026.
+- **Task role:** `evtxkitTaskRole` may read the uploads bucket (`s3:GetObject`) and write the reports bucket (`s3:PutObject`), and nothing else.
+- **Automated by CI:** tests, the image build and a smoke test on every push to `main` or `full-toolkit-pipeline`; the registry push and the ECR deploy run on `main` only. The two Lambda functions and the buckets are **not** deployed by CI: they are set up by hand following the runbook.
 
 ## Architecture
 
