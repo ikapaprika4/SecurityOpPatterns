@@ -672,7 +672,7 @@ class TestAwsFiles(unittest.TestCase):
         granted = policy_file("ci-deploy-policy.json")
         self.assertEqual(set(granted), {
             "ecr:GetAuthorizationToken", "ecr:BatchCheckLayerAvailability", "ecr:InitiateLayerUpload",
-            "ecr:UploadLayerPart", "ecr:CompleteLayerUpload", "ecr:PutImage",
+            "ecr:UploadLayerPart", "ecr:CompleteLayerUpload", "ecr:PutImage", "ecr:BatchGetImage",
             "ecs:RegisterTaskDefinition", "ecs:RunTask", "iam:PassRole"})
         # Only the two calls AWS cannot scope to a resource may name "*".
         self.assertEqual({a for a, s in granted.items() if s["Resource"] == "*"},
@@ -681,9 +681,9 @@ class TestAwsFiles(unittest.TestCase):
         for action in granted:
             self.assertFalse(action.startswith(("iam:Create", "iam:Put", "iam:Attach", "iam:Update", "s3:", "lambda:", "sts:")), action)
         task = json.loads(read("aws", "task-definition.json"))
-        self.assertEqual(sorted(granted["ecs:RunTask"]["Resource"]),
-                         [f"arn:aws:ecs:{REGION}:{ACCOUNT}:task-definition/{task['family']}",
-                          f"arn:aws:ecs:{REGION}:{ACCOUNT}:task-definition/{task['family']}:*"])
+        # Task-definition ARNs always end in :revision; a revision-less ARN is not a valid one.
+        self.assertEqual(granted["ecs:RunTask"]["Resource"],
+                         [f"arn:aws:ecs:{REGION}:{ACCOUNT}:task-definition/{task['family']}:*"])
         self.assertEqual(granted["ecs:RunTask"]["Condition"],
                          {"ArnEquals": {"ecs:cluster": f"arn:aws:ecs:{REGION}:{ACCOUNT}:cluster/evtxkit-cluster"}})
         self.assertEqual(sorted(granted["iam:PassRole"]["Resource"]), sorted([task["executionRoleArn"], task["taskRoleArn"]]))

@@ -15,7 +15,8 @@
         "ecr:InitiateLayerUpload",
         "ecr:UploadLayerPart",
         "ecr:CompleteLayerUpload",
-        "ecr:PutImage"
+        "ecr:PutImage",
+        "ecr:BatchGetImage"
       ],
       "Resource": "arn:aws:ecr:eu-north-1:772325758655:repository/evtxkit"
     },
@@ -30,7 +31,6 @@
       "Effect": "Allow",
       "Action": "ecs:RunTask",
       "Resource": [
-        "arn:aws:ecs:eu-north-1:772325758655:task-definition/evtxkit-task",
         "arn:aws:ecs:eu-north-1:772325758655:task-definition/evtxkit-task:*"
       ],
       "Condition": {

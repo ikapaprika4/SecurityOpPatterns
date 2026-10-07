@@ -461,7 +461,7 @@ and read every upload and report) to one inline policy,
 | Statement | Allows | Used for |
 |---|---|---|
 | `EcrLogin` | `ecr:GetAuthorizationToken` | `amazon-ecr-login` |
-| `PushTheEvtxkitImage` | the five push calls, on the `evtxkit` repository only | `docker push` |
+| `PushTheEvtxkitImage` | the six push calls (the layer upload ones, `PutImage`, and `BatchGetImage`, the manifest check at the end of a push), on the `evtxkit` repository only | `docker push` |
 | `RegisterTheTaskDefinition` | `ecs:RegisterTaskDefinition` | `register-task-definition` |
 | `RunTheTestTask` | `ecs:RunTask` on `evtxkit-task`, in `evtxkit-cluster` only | the smoke-test run |
 | `PassTheTasksTwoRoles` | `iam:PassRole` for the two task roles, to ECS tasks only | both of the above |
@@ -472,9 +472,16 @@ allowed and 24 dangerous ones (creating roles or users, attaching policies,
 minting keys, reading either bucket, touching the Lambda functions, running
 another task definition or cluster) denied. After it was applied, real calls
 confirmed that the ECR login works and that IAM, S3, Lambda, ECS listing and
-logs are refused. What has **not** been run is the deploy job itself: the next
-push to `main` is that test, and if the policy is missing something, the job
-fails with an AccessDenied that names the action to add.
+logs are refused. The first real push with this key then found one action the
+simulator could not: `ecr:BatchGetImage`, which a push uses to check the manifest
+at the end, was missing; it is in the policy now. After that, the image was
+pushed, the task definition registered, and a `run-task` by family name started
+a task on the new revision, all with this key. What has **not** been run is the
+deploy job itself on GitHub's runners: the next push to `main` is that test, and
+if the policy is still missing something, the job fails with an AccessDenied that
+names the action to add. (The `ecs:RunTask` ARN is `evtxkit-task:*` only: a
+task-definition ARN without a revision is not a valid ARN, and the `:*` form is
+enough, as that run showed.)
 
 ```bash
 aws iam put-user-policy --user-name github-actions-deploy --policy-name CiDeploy --policy-document file://aws/ci-deploy-policy.json
