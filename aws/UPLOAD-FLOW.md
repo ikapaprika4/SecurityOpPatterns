@@ -139,6 +139,12 @@ evtxkit's usage and exit 0 with no AWS configuration at all.
 `--platform linux/amd64` matters on an ARM laptop: the task definition names
 no platform, so Fargate runs x86-64, and an ARM image would not start.
 
+One exception to "the tag is the commit": the image `evtxkit:6a554c0`, the one
+`evtxkit-task` revision 8 runs, was built from the commit that is now
+`ce25264`. The branch's commit messages were edited afterwards (nothing else
+changed, so the files are identical), which gave every commit on it a new id.
+Images pushed from now on are tagged with the ids that are in the history.
+
 ## 5. Register a new task definition revision
 
 Task definitions cannot be edited; this writes a copy of
